@@ -60,6 +60,10 @@ pub fn start_burn(request: BurnRequest, channel: tauri::ipc::Channel<BurnProgres
         let result = burn::cdrdao::burn(&options, tx.clone());
         if let Err(e) = result {
             eprintln!("[burn] burn failed: {}", e);
+            let _ = tx.send(BurnProgress::Error {
+                message: "Burn failed".into(),
+                details: e,
+            });
         }
         drop(tx);
     });

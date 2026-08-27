@@ -12,29 +12,8 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub fn find_cdrdao() -> Result<String, String> {
-    let which = if cfg!(target_os = "windows") {
-        "where"
-    } else {
-        "which"
-    };
-
-    let output = Command::new(which)
-        .arg("cdrdao")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|e| format!("Failed to search for cdrdao: {}", e))?;
-
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        stdout
-            .lines()
-            .next()
-            .map(|l| l.trim().to_string())
-            .ok_or_else(|| "cdrdao found but path is empty".into())
-    } else {
-        Err("cdrdao not found. Install it:\n  Windows: install from https://github.com/cdrdao/cdrdao\n  Linux: sudo apt install cdrdao".into())
-    }
+    crate::process::find_tool("cdrdao")
+        .ok_or_else(|| "cdrdao not found. Install it:\n  Windows: install from https://github.com/cdrdao/cdrdao\n  Linux: sudo apt install cdrdao".into())
 }
 
 pub fn burn(
