@@ -2,114 +2,132 @@
 
 ## Current objective
 
-Phase 1 complete. Proceeding to Phase 2: Audio Pipeline.
+Phase 2 complete. Proceeding to Phase 3: Optical Hardware.
 
 ## Current test version
 
 - Branch: main
 - Build result: Clean build (TypeScript + Vite + Cargo)
 
-## What was completed (Phase 1)
+## What was completed (Phase 2)
 
-- Tauri v2 + React + TypeScript + Vite scaffolding
-- Tailwind CSS with light/dark/system theme system using CSS variables
-- Core types: `Track`, `DiscInfo`, `BurnState`, `Settings`
-- Custom hooks: `useTrackList`, `useDiscInfo`, `useTheme`
-- Main Burner page with CD title, track list, capacity meter, disc status, burn button
-- Audio drop zone with file picker and drag-and-drop
-- Track list with move up/down buttons and remove
-- Capacity meter with over-capacity detection
-- Disc status display with simulated states
-- Settings page with theme, drive, burn speed, eject toggle
-- Burn progress UI with preparing/writing/finalizing stages, success, and failure screens
-- Simulated demo tracks for testing
-- Placeholder application icons
-- TypeScript type checking passes
-- Vite production build passes
-- Cargo build passes
+### Rust Audio Pipeline
+
+- **Process module** (`src-tauri/src/process/`):
+  - Safe tool invocation with `run_tool()` and `run_tool_with_stdin()`
+  - `CREATE_NO_WINDOW` flag on Windows for hidden console windows
+  - `find_tool()` for PATH-based tool discovery
+  - Structured `ProcessOutput` with exit code, stdout, stderr
+
+- **Audio metadata** (`src-tauri/src/audio/metadata.rs`):
+  - `probe_file()` — runs ffprobe with JSON output, parses duration/title/artist/album/format
+  - `probe_files()` — batch probing
+  - Returns `ProbeResult` with success status, metadata, or error
+
+- **Audio conversion** (`src-tauri/src/audio/conversion.rs`):
+  - `convert_to_cdda()` — runs ffmpeg to convert to 44100Hz/16-bit/stereo PCM WAV
+  - `prepare_temp_dir()` — creates UUID-named temp directory
+  - `cleanup_temp_dir()` — removes temp directory
+
+- **Tauri commands** (`src-tauri/src/commands/audio.rs`):
+  - `probe_audio_file(path)` — probes single file, returns `ProbeResponse`
+  - `probe_audio_files(paths)` — probes multiple files
+  - `prepare_track(path, id)` — converts track to CD-DA PCM
+
+### Frontend Integration
+
+- **Audio service** (`src/services/audio.ts`):
+  - `probeAudioFile()`, `probeAudioFiles()`, `prepareTrack()` — Tauri invoke wrappers
+
+- **AudioDropZone** updated:
+  - Uses Tauri `open()` dialog for file selection (full paths)
+  - Drag-and-drop opens dialog as fallback
+
+- **BurnerPage** updated:
+  - Calls real `probeAudioFiles()` on file selection
+  - Shows "Scanning files..." during probe
+  - Displays real metadata and durations from FFprobe
+
+### Build Verification
+
+- TypeScript: zero errors
+- Vite: clean production build
+- Cargo: clean build with zero warnings
 
 ## Testing checklist for the next build
 
-- [ ] Tauri dev server starts without errors.
-- [ ] Main screen renders with empty state.
-- [ ] "Load demo tracks" button populates track list.
-- [ ] File picker opens and accepts audio files.
-- [ ] Drag-and-drop adds files to the track list.
-- [ ] Track list shows title, duration, and remove button.
-- [ ] Move up/down buttons reorder tracks.
-- [ ] Capacity meter updates when tracks are added/removed.
-- [ ] Settings page opens and theme toggle works.
-- [ ] Light and dark themes apply correctly.
-- [ ] Burn button enables/disables based on conditions.
-- [ ] Simulated burn progress completes successfully.
-- [ ] Application window has minimum size enforced.
-- [ ] No TypeScript errors.
-- [ ] No Cargo build errors.
+- [ ] FFprobe is found on PATH (tools > 0 required)
+- [ ] "Add Audio Files" opens file dialog
+- [ ] Selecting MP3 files populates track list with real titles/durations
+- [ ] Selecting FLAC files works
+- [ ] Selecting WAV files works
+- [ ] Selecting M4A files works
+- [ ] Selecting OGG files works
+- [ ] Corrupt file shows error message on track row
+- [ ] Unsupported format shows error message on track row
+- [ ] Mixed files (valid + invalid) are handled correctly
+- [ ] Capacity meter reflects real durations
+- [ ] Remove track updates totals correctly
+- [ ] Move up/down reorders tracks
+- [ ] Theme toggle works
+- [ ] Settings page works
+- [ ] No TypeScript errors
+- [ ] No Cargo build errors
 
-## Proposed Phase 2 Implementation Plan
+## Proposed Phase 3 Implementation Plan
 
-Phase 2 implements the audio pipeline: FFprobe for metadata extraction and FFmpeg for conversion to CD-DA PCM.
+Phase 3 implements optical drive detection and media inspection.
 
-### Step 1: Process Module
+### Step 1: Windows Drive Detection
 
-- Centralized process invocation for external tools
-- Safe argument construction (no shell interpolation)
-- `CREATE_NO_WINDOW` on Windows
-- Structured stdout/stderr capture
-- Timeout handling
+- WMI queries via `wmi` crate for `Win32_CDROMDrive`
+- Properties: DeviceID, Drive, Name, Capabilities, MediaLoaded
+- Write capability detection
+- Drive enumeration
 
-### Step 2: FFprobe Integration
+### Step 2: Linux Drive Detection
 
-- `ffprobe -print_format json -show_format -show_streams`
-- Parse metadata: duration, title, artist, album, format
-- Concurrency-limited batch probing (max 8 parallel)
-- Error handling for corrupt/unsupported files
-- Fallback to filename when metadata is absent
+- udev enumerator for block devices with `ID_CDROM=1`
+- Device node detection (`/dev/sr0`)
+- Write capability from udev properties
 
-### Step 3: Audio Conversion
+### Step 3: Media Inspection
 
-- `ffmpeg -i input -ar 44100 -ac 2 -acodec pcm_s16le output.wav`
-- Temporary directory per burn session
-- Parallel conversion (max 4 concurrent)
-- Progress tracking
-- Cleanup on success and failure
+- Blank disc detection via SCSI READ DISC INFORMATION
+- Disc capacity via ATIP (READ TOC/PMA/ATIP)
+- Media type (CD-R, CD-RW)
 
-### Step 4: FFmpeg/FFprobe Bundling
+### Step 4: Hotplug Detection
 
-- Download static builds for Windows and Linux
-- Tauri sidecar configuration
-- Binary path resolution (portable vs installed)
-- Verify binaries work from the bundled location
+- Windows: `WM_DEVICECHANGE` via hidden message window
+- Linux: udev monitor on `block` subsystem
 
-### Step 5: Rust Commands
+### Step 5: Tauri Commands
 
-- `probe_audio_file(path) -> TrackInfo`
-- `probe_audio_files(paths) -> Vec<TrackInfo>`
-- `prepare_tracks(tracks, temp_dir) -> Vec<PreparedTrack>`
-- `get_audio_info(path) -> AudioInfo`
+- `detect_drives()` — enumerate optical writers
+- `inspect_media(drive)` — get disc info
+- `get_disc_state(drive)` — current disc status
 
 ### Step 6: Frontend Integration
 
-- Replace simulated track creation with real Tauri commands
-- Show probe progress when adding many files
-- Display real metadata and durations
-- Handle probe failures gracefully
+- Replace simulated `useDiscInfo` with real Tauri commands
+- Auto-refresh on disc changes
+- Display detected drive name and disc status
 
 ## Next Implementation Batch
 
-- [ ] Build process invocation module
-- [ ] Implement FFprobe metadata extraction
-- [ ] Implement FFmpeg audio conversion
-- [ ] Configure FFmpeg/FFprobe as Tauri sidecars
-- [ ] Create Rust Tauri commands for audio pipeline
-- [ ] Integrate with frontend track list
-- [ ] Test with MP3, FLAC, WAV, M4A, OGG files
-- [ ] Verify TypeScript and Cargo builds
+- [ ] Add `wmi` crate to Cargo.toml for Windows drive detection
+- [ ] Implement Windows drive enumeration via WMI
+- [ ] Implement Linux drive enumeration via udev
+- [ ] Implement disc state detection (blank, not-blank, capacity)
+- [ ] Create Tauri commands for drive and media detection
+- [ ] Integrate with frontend DiscStatus component
+- [ ] Test on Windows with optical drive
 
 ## Deliberately Postponed
 
-- Optical drive detection (Phase 3)
 - Actual burning (Phase 4)
 - Distribution packaging (Phase 5)
 - Hardware testing (Phase 6)
 - License choice — deferred until more of the app exists
+- FFmpeg bundling as sidecar — system PATH works for development

@@ -1,4 +1,6 @@
-use serde::{Deserialize, Serialize};
+pub mod audio;
+pub mod commands;
+pub mod process;
 
 pub mod error {
     use serde::Serialize;
@@ -21,29 +23,16 @@ pub mod error {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TrackInfo {
-    pub id: String,
-    pub path: String,
-    pub file_name: String,
-    pub title: String,
-    pub artist: Option<String>,
-    pub album: Option<String>,
-    pub duration: f64,
-    pub format: String,
-}
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! Welcome to Burnt.", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![
+            commands::audio::probe_audio_file,
+            commands::audio::probe_audio_files,
+            commands::audio::prepare_track,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

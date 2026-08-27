@@ -9,18 +9,13 @@ import { CapacityMeter } from "../../components/CapacityMeter/CapacityMeter";
 import { DiscStatus } from "../../components/DiscStatus/DiscStatus";
 import { BurnProgress } from "../../components/BurnProgress/BurnProgress";
 import { formatDuration } from "../../utils/timeFormat";
+import { probeAudioFiles } from "../../services/audio";
+import type { ProbeResult } from "../../services/audio";
 
 interface BurnerPageProps {
   settings: Settings;
   onOpenSettings: () => void;
 }
-
-const SAMPLE_TRACKS = [
-  { path: "/music/dreams.mp3", fileName: "dreams.mp3", title: "Dreams", artist: "Fleetwood Mac", album: "Rumours", duration: 257, format: "mp3" },
-  { path: "/music/everywhere.flac", fileName: "everywhere.flac", title: "Everywhere", artist: "Fleetwood Mac", album: "Tango in the Night", duration: 223, format: "flac" },
-  { path: "/music/africa.m4a", fileName: "africa.m4a", title: "Africa", artist: "Toto", album: "Toto IV", duration: 295, format: "m4a" },
-  { path: "/music/dont-stop-believin.mp3", fileName: "Don't Stop Believin'.mp3", title: "Don't Stop Believin'", artist: "Journey", album: "Escape", duration: 251, format: "mp3" },
-];
 
 export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
   const {
@@ -40,35 +35,35 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
   const [burnCurrentTrack, setBurnCurrentTrack] = useState(0);
   const [burnError, setBurnError] = useState<string | null>(null);
   const [burnErrorDetails, setBurnErrorDetails] = useState<string | null>(null);
-  const [loadDemo, setLoadDemo] = useState(false);
+  const [isProbing, setIsProbing] = useState(false);
 
   const handleFilesAdded = useCallback(
-    (files: File[]) => {
-      const newTracks = files.map((f) =>
-        createTrack({
-          path: f.name,
-          fileName: f.name,
-          title: f.name.replace(/\.[^.]+$/, ""),
-          duration: 180 + Math.random() * 120,
-          format: f.name.split(".").pop() ?? "unknown",
-        })
-      );
-      addTracks(newTracks);
+    async (paths: string[]) => {
+      setIsProbing(true);
+      try {
+        const results: ProbeResult[] = await probeAudioFiles(paths);
+        const newTracks = results.map((r) =>
+          createTrack({
+            path: r.path,
+            fileName: r.file_name,
+            title: r.title,
+            artist: r.artist,
+            album: r.album,
+            duration: r.duration,
+            format: r.format,
+            isValid: r.is_valid,
+            errorMessage: r.error_message ?? undefined,
+          })
+        );
+        addTracks(newTracks);
+      } catch (err) {
+        console.error("Probe failed:", err);
+      } finally {
+        setIsProbing(false);
+      }
     },
     [addTracks, createTrack]
   );
-
-  const handleLoadDemo = useCallback(() => {
-    const demoTracks = SAMPLE_TRACKS.map((s) =>
-      createTrack({
-        ...s,
-        duration: s.duration,
-      })
-    );
-    addTracks(demoTracks);
-    setCdTitle("Road Trip 2026");
-    setLoadDemo(true);
-  }, [addTracks, createTrack]);
 
   const canBurn =
     tracks.length > 0 &&
@@ -76,9 +71,11 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
     totalDuration <= MAX_CD_SECONDS &&
     disc.hasDrive &&
     disc.isBlank &&
-    burnStatus === "idle";
+    burnStatus === "idle" &&
+    !isProbing;
 
   const burnDisabledReason = (() => {
+    if (isProbing) return "Scanning files\u2026";
     if (tracks.length === 0) return "Add some tracks first";
     if (!tracks.some((t) => t.isValid)) return "No valid tracks to burn";
     if (totalDuration > MAX_CD_SECONDS)
@@ -226,20 +223,17 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
                 onMove={moveTrack}
               />
 
-              <AudioDropZone
-                onFilesAdded={handleFilesAdded}
-                hasTracks={tracks.length > 0}
-              />
+              {isProbing ? (
+                <div className="w-full py-3 text-center text-sm text-text-muted">
+                  Scanning files&hellip;
+                </div>
+              ) : (
+                <AudioDropZone
+                  onFilesAdded={handleFilesAdded}
+                  hasTracks={tracks.length > 0}
+                />
+              )}
             </div>
-
-            {tracks.length === 0 && !loadDemo && (
-              <button
-                onClick={handleLoadDemo}
-                className="text-xs text-text-faint hover:text-text-muted transition-colors"
-              >
-                Load demo tracks
-              </button>
-            )}
 
             <div className="space-y-3">
               <CapacityMeter
