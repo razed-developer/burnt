@@ -67,7 +67,10 @@ pub fn burn(
             index: (i + 1) as u32,
             title: track.title.clone(),
             artist: track.artist.clone(),
-            path: wav_path.to_string_lossy().to_string(),
+            // Use a relative filename; cdrdao runs with CWD = temp_dir so it
+            // resolves these within the temp dir. MSYS cdrdao misreads Windows
+            // absolute paths like `C:/...` as relative ones.
+            path: wav_name,
             duration_secs: track.duration_secs,
         });
     }
@@ -113,11 +116,11 @@ pub fn burn(
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
 
-    // Set working directory to cdrdao's parent so relative DLLs are found
-    if let Some(parent) = std::path::Path::new(&cdrdao_path).parent() {
-        cmd.current_dir(parent);
-        eprintln!("[burn] child working dir: {}", parent.display());
-    }
+    // Set working directory to the temp burn dir so cdrdao resolves the
+    // relative WAV paths in the TOC. DLLs are found via ensure_dll_dirs()
+    // (AddDllDirectory at startup), so we don't need the exe dir here.
+    cmd.current_dir(&temp_dir);
+    eprintln!("[burn] child working dir: {}", temp_dir.display());
 
     let mut child = match cmd.spawn() {
         Ok(c) => c,
