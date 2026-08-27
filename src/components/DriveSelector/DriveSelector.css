@@ -1,0 +1,21 @@
+.drive-select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.drive-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.drive-select-none {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.drive-disabled {
+  color: var(--text-faint);
+}

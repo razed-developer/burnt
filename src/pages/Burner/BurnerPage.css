@@ -1,0 +1,71 @@
+.burner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.burner-heading {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.section-block {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.title-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.title-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.title-input:focus-visible {
+  outline: var(--focus-ring);
+}
+
+.burn-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-md) 0;
+}
+
+.burn-reason {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.burn-button {
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.burn-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.burn-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -1,0 +1,84 @@
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.track-row:last-child {
+  border-bottom: none;
+}
+
+.track-row:hover {
+  background: var(--bg-inset);
+}
+
+.track-index {
+  width: 2.2em;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.track-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.track-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-title.invalid {
+  color: var(--danger);
+}
+
+.track-error {
+  font-size: 0.78rem;
+  color: var(--danger);
+}
+
+.track-duration {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-duration.invalid {
+  color: var(--text-faint);
+}
+
+.track-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--bg-inset);
+  color: var(--text);
+}
+
+.icon-btn.remove:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

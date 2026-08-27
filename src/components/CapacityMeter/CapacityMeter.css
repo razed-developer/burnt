@@ -1,0 +1,65 @@
+.section-block {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.capacity-total {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.meter {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--meter-track);
+  overflow: hidden;
+}
+
+.meter-bar {
+  height: 100%;
+  background: var(--meter-fill);
+  border-radius: var(--radius-sm);
+  transition: width var(--transition-fast);
+}
+
+.meter-bar.warn {
+  background: var(--meter-warn);
+}
+
+.meter-bar.over {
+  background: var(--meter-over);
+}
+
+.capacity-labels {
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.capacity-over {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.capacity-remaining {
+  color: var(--text-muted);
+}

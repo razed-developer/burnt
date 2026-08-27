@@ -1,0 +1,177 @@
+/* Design tokens */
+
+:root {
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  --focus-ring: 2px solid var(--color-focus);
+
+  --transition-fast: 120ms ease;
+}
+
+/* Light theme (default) */
+:root[data-theme="light"],
+:root {
+  --bg: #f7f8fa;
+  --bg-elevated: #ffffff;
+  --bg-inset: #eef0f3;
+  --border: #d9dce1;
+  --border-strong: #c3c8cf;
+
+  --text: #1c1f23;
+  --text-muted: #5b6269;
+  --text-faint: #8a919a;
+
+  --accent: #2f6f9f;
+  --accent-hover: #285f89;
+  --accent-contrast: #ffffff;
+
+  --success: #2e7d4f;
+  --success-bg: #e7f4ec;
+  --warning: #b06f1a;
+  --warning-bg: #fbf0db;
+  --danger: #b23b3b;
+  --danger-bg: #fbeaea;
+
+  --focus: #2f6f9f;
+
+  --meter-track: #e2e5ea;
+  --meter-fill: var(--accent);
+  --meter-warn: #b06f1a;
+  --meter-over: #b23b3b;
+
+  --shadow-sm: 0 1px 2px rgba(20, 24, 30, 0.06);
+  --shadow-md: 0 2px 6px rgba(20, 24, 30, 0.1);
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --bg: #171a1e;
+  --bg-elevated: #1f2329;
+  --bg-inset: #13161a;
+  --border: #333a42;
+  --border-strong: #454d56;
+
+  --text: #e8eaed;
+  --text-muted: #a7adb4;
+  --text-faint: #71787f;
+
+  --accent: #5a9bcb;
+  --accent-hover: #6fabe0;
+  --accent-contrast: #0f1418;
+
+  --success: #6cc58c;
+  --success-bg: #18331f;
+  --warning: #ddab60;
+  --warning-bg: #3a2d12;
+  --danger: #e07878;
+  --danger-bg: #3a1c1c;
+
+  --focus: #5a9bcb;
+
+  --meter-track: #2b3138;
+  --meter-fill: var(--accent);
+  --meter-warn: #ddab60;
+  --meter-over: #e07878;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* Base */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xl);
+  padding: var(--space-md) var(--space-xl);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.app-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.app-nav {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.nav-link {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: var(--bg-inset);
+}
+
+.nav-link.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}

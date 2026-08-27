@@ -1,0 +1,117 @@
+.burn-progress-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.burn-progress-panel {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.burn-title {
+  margin: 0 0 var(--space-md);
+  font-size: 1.4rem;
+}
+
+.burn-title.failure {
+  color: var(--danger);
+}
+
+.burn-label {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-muted);
+}
+
+.burn-meter {
+  max-width: 320px;
+  margin: 0 auto var(--space-lg);
+}
+
+.meter.indeterminate .meter-bar {
+  width: 40%;
+  animation: indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0% {
+    margin-left: -40%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+
+.burn-track {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.burn-hint {
+  margin: var(--space-lg) 0 0;
+  color: var(--text-faint);
+  font-size: 0.8rem;
+}
+
+.burn-check {
+  font-size: 3rem;
+  color: var(--success);
+  line-height: 1;
+  margin-bottom: var(--space-sm);
+}
+
+.burn-summary {
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 var(--space-lg);
+}
+
+.burn-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  font-weight: 600;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+}
+
+.btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn.ghost {
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.btn.ghost:hover {
+  color: var(--text);
+}

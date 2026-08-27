@@ -1,0 +1,24 @@
+.tracklist-total {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tracklist-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.tracklist-warning {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: var(--space-md) 0 0;
+}
+
+.tracklist-add {
+  display: flex;
+  margin-top: var(--space-md);
+}
