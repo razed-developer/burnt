@@ -13,11 +13,11 @@ pub fn convert_to_cdda(input: &Path, output: &Path) -> ConversionResult {
     let ffmpeg = match process::find_tool("ffmpeg") {
         Some(p) => p,
         None => {
-            return ConversionResult {
-                success: false,
-                output_path: None,
-                error: Some("ffmpeg not found. Is it installed?".into()),
-            }
+        return ConversionResult {
+            success: false,
+            output_path: None,
+            error: Some("ffmpeg not found. Install FFmpeg and make sure it is on your PATH.\n\nWindows: https://www.gyan.dev/ffmpeg/builds/\nLinux: sudo apt install ffmpeg".into()),
+        }
         }
     };
 

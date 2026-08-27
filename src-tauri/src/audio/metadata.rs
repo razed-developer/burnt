@@ -50,7 +50,7 @@ pub fn probe_file(path: &Path) -> ProbeResult {
             return ProbeResult {
                 success: false,
                 metadata: None,
-                error: Some("ffprobe not found. Is it installed?".into()),
+                error: Some("ffprobe not found. Install FFmpeg and make sure it is on your PATH.\n\nWindows: https://www.gyan.dev/ffmpeg/builds/\nLinux: sudo apt install ffmpeg".into()),
             }
         }
     };

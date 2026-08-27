@@ -92,14 +92,61 @@ pub fn run_tool_with_stdin(
 }
 
 pub fn find_tool(name: &str) -> Option<String> {
-    let which = if cfg!(target_os = "windows") {
-        "where"
+    if cfg!(target_os = "windows") {
+        find_tool_windows(name)
     } else {
-        "which"
-    };
+        find_tool_unix(name)
+    }
+}
 
-    run_tool(which, &[name], Duration::from_secs(5))
+fn find_tool_windows(name: &str) -> Option<String> {
+    // Check PATH directly to avoid "could not determine if gui app" dialog
+    // that Windows shows when running `where` from a GUI process
+    let extensions = ["", ".exe", ".cmd", ".bat", ".com"];
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in path_var.split(';') {
+            let dir = dir.trim();
+            if dir.is_empty() {
+                continue;
+            }
+            for ext in &extensions {
+                let candidate = format!("{}\\{}{}", dir, name, ext);
+                if std::path::Path::new(&candidate).is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+
+    // Fallback: try `where` via cmd.exe to avoid GUI dialog
+    let output = Command::new("cmd")
+        .args(["/C", "where", name])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
         .ok()
-        .filter(|o| o.exit_code == 0)
-        .and_then(|o| o.stdout.lines().next().map(|s| s.trim().to_string()))
+        .filter(|o| o.status.success())?;
+
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()
+        .map(|s| s.trim().to_string())
+}
+
+fn find_tool_unix(name: &str) -> Option<String> {
+    let output = Command::new("which")
+        .arg(name)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .ok()
+        .filter(|o| o.status.success())?;
+
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()
+        .map(|s| s.trim().to_string())
 }
