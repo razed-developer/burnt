@@ -2,51 +2,54 @@
 
 ## Current objective
 
-Phase 2 complete. Proceeding to Phase 3: Optical Hardware.
+Phase 3 complete. Proceeding to Phase 4: Burning.
 
 ## Current test version
 
 - Branch: main
 - Build result: Clean build (TypeScript + Vite + Cargo)
 
-## What was completed (Phase 2)
+## What was completed (Phase 3)
 
-### Rust Audio Pipeline
+### Rust Disc Detection Module
 
-- **Process module** (`src-tauri/src/process/`):
-  - Safe tool invocation with `run_tool()` and `run_tool_with_stdin()`
-  - `CREATE_NO_WINDOW` flag on Windows for hidden console windows
-  - `find_tool()` for PATH-based tool discovery
-  - Structured `ProcessOutput` with exit code, stdout, stderr
+- **Windows** (`src-tauri/src/disc/platform/windows.rs`):
+  - Drive enumeration via `GetLogicalDrives` + `GetDriveTypeW` (DRIVE_CDROM = 5)
+  - Media inspection via `CreateFileW` to check media presence
+  - cdrdao fallback for detailed disc info (blank, capacity, type)
 
-- **Audio metadata** (`src-tauri/src/audio/metadata.rs`):
-  - `probe_file()` — runs ffprobe with JSON output, parses duration/title/artist/album/format
-  - `probe_files()` — batch probing
-  - Returns `ProbeResult` with success status, metadata, or error
+- **Linux** (`src-tauri/src/disc/platform/linux.rs`):
+  - Drive enumeration via udev (`ID_CDROM=1` property)
+  - Legacy path fallback (`/dev/sr0`, `/dev/cdrom`, `/dev/dvd`)
+  - Media inspection via sysfs and udev properties
+  - Blank media type detection (CD-R, CD-RW)
 
-- **Audio conversion** (`src-tauri/src/audio/conversion.rs`):
-  - `convert_to_cdda()` — runs ffmpeg to convert to 44100Hz/16-bit/stereo PCM WAV
-  - `prepare_temp_dir()` — creates UUID-named temp directory
-  - `cleanup_temp_dir()` — removes temp directory
+- **Shared types** (`src-tauri/src/disc/mod.rs`):
+  - `DriveInfo` — name, path, can_write_cd, is_writable
+  - `MediaInfo` — has_media, is_blank, is_writable, capacity_minutes, media_type, disc_state
+  - `DiscState` enum — NoDrive, NoMedia, Blank, NotBlank, NotWritable, Unknown
 
-- **Tauri commands** (`src-tauri/src/commands/audio.rs`):
-  - `probe_audio_file(path)` — probes single file, returns `ProbeResponse`
-  - `probe_audio_files(paths)` — probes multiple files
-  - `prepare_track(path, id)` — converts track to CD-DA PCM
+### Tauri Commands
+
+- `detect_drives()` — enumerate optical writers
+- `inspect_media(drivePath)` — get disc info for specific drive
+- `get_disc_info()` — auto-detect first drive and inspect
 
 ### Frontend Integration
 
-- **Audio service** (`src/services/audio.ts`):
-  - `probeAudioFile()`, `probeAudioFiles()`, `prepareTrack()` — Tauri invoke wrappers
+- **Disc service** (`src/services/disc.ts`):
+  - `detectDrives()`, `inspectMedia()`, `getDiscInfo()` — Tauri invoke wrappers
 
-- **AudioDropZone** updated:
-  - Uses Tauri `open()` dialog for file selection (full paths)
-  - Drag-and-drop opens dialog as fallback
+- **useDiscInfo hook** updated:
+  - Calls real `getDiscInfo()` on mount
+  - Polls every 3 seconds for disc changes
+  - Maps Rust `DiscState` to TypeScript `DiscState`
+  - Graceful fallback if detection fails
 
-- **BurnerPage** updated:
-  - Calls real `probeAudioFiles()` on file selection
-  - Shows "Scanning files..." during probe
-  - Displays real metadata and durations from FFprobe
+- **DiscStatus** shows:
+  - Drive name when detected
+  - Plain-language disc state messages
+  - Color-coded states (green for blank, yellow for not-blank, red for not-writable)
 
 ### Build Verification
 
@@ -56,78 +59,64 @@ Phase 2 complete. Proceeding to Phase 3: Optical Hardware.
 
 ## Testing checklist for the next build
 
-- [ ] FFprobe is found on PATH (tools > 0 required)
-- [ ] "Add Audio Files" opens file dialog
-- [ ] Selecting MP3 files populates track list with real titles/durations
-- [ ] Selecting FLAC files works
-- [ ] Selecting WAV files works
-- [ ] Selecting M4A files works
-- [ ] Selecting OGG files works
-- [ ] Corrupt file shows error message on track row
-- [ ] Unsupported format shows error message on track row
-- [ ] Mixed files (valid + invalid) are handled correctly
-- [ ] Capacity meter reflects real durations
-- [ ] Remove track updates totals correctly
-- [ ] Move up/down reorders tracks
-- [ ] Theme toggle works
-- [ ] Settings page works
+- [ ] Drive detection runs on startup
+- [ ] Drive name is displayed in disc status
+- [ ] No-drive state shows "No CD burner found"
+- [ ] No-media state shows "Please insert a blank CD"
+- [ ] Blank CD shows "Blank CD-R" in green
+- [ ] Non-blank disc shows warning
+- [ ] Disc status updates when disc is inserted/removed
+- [ ] Polling stops when component unmounts
 - [ ] No TypeScript errors
 - [ ] No Cargo build errors
 
-## Proposed Phase 3 Implementation Plan
+## Proposed Phase 4 Implementation Plan
 
-Phase 3 implements optical drive detection and media inspection.
+Phase 4 implements the actual burn workflow.
 
-### Step 1: Windows Drive Detection
+### Step 1: Burn Backend Abstraction
 
-- WMI queries via `wmi` crate for `Win32_CDROMDrive`
-- Properties: DeviceID, Drive, Name, Capabilities, MediaLoaded
-- Write capability detection
-- Drive enumeration
+- `BurnBackend` trait with platform implementations
+- Windows: IMAPI2 via COM
+- Linux: cdrdao subprocess
 
-### Step 2: Linux Drive Detection
+### Step 2: Burn Preparation
 
-- udev enumerator for block devices with `ID_CDROM=1`
-- Device node detection (`/dev/sr0`)
-- Write capability from udev properties
+- Generate TOC file (Linux) or IMAPI2 stream (Windows)
+- CD-TEXT generation from track metadata
+- Temporary file management
 
-### Step 3: Media Inspection
+### Step 3: Burn Execution
 
-- Blank disc detection via SCSI READ DISC INFORMATION
-- Disc capacity via ATIP (READ TOC/PMA/ATIP)
-- Media type (CD-R, CD-RW)
+- Initiate burn with progress reporting
+- Parse cdrdao stderr for progress (Linux)
+- IMAPI2 COM events for progress (Windows)
 
-### Step 4: Hotplug Detection
+### Step 4: Burn Completion
 
-- Windows: `WM_DEVICECHANGE` via hidden message window
-- Linux: udev monitor on `block` subsystem
+- Finalization handling
+- Success/failure reporting
+- Disc eject option
+- Burn Another flow
 
-### Step 5: Tauri Commands
+### Step 5: Error Handling
 
-- `detect_drives()` — enumerate optical writers
-- `inspect_media(drive)` — get disc info
-- `get_disc_state(drive)` — current disc status
-
-### Step 6: Frontend Integration
-
-- Replace simulated `useDiscInfo` with real Tauri commands
-- Auto-refresh on disc changes
-- Display detected drive name and disc status
+- Friendly error messages for common failures
+- Technical details for troubleshooting
+- Recovery without losing track list
 
 ## Next Implementation Batch
 
-- [ ] Add `wmi` crate to Cargo.toml for Windows drive detection
-- [ ] Implement Windows drive enumeration via WMI
-- [ ] Implement Linux drive enumeration via udev
-- [ ] Implement disc state detection (blank, not-blank, capacity)
-- [ ] Create Tauri commands for drive and media detection
-- [ ] Integrate with frontend DiscStatus component
-- [ ] Test on Windows with optical drive
+- [ ] Create BurnBackend trait and platform stubs
+- [ ] Implement TOC file generation for cdrdao
+- [ ] Implement CD-TEXT generation from track metadata
+- [ ] Create Tauri commands for burn workflow
+- [ ] Wire burn progress to frontend BurnProgress component
+- [ ] Test simulated burn flow with real TOC generation
 
 ## Deliberately Postponed
 
-- Actual burning (Phase 4)
+- IMAPI2 COM integration (requires careful unsafe Rust) — defer to after cdrdao works
 - Distribution packaging (Phase 5)
 - Hardware testing (Phase 6)
-- License choice — deferred until more of the app exists
-- FFmpeg bundling as sidecar — system PATH works for development
+- License choice

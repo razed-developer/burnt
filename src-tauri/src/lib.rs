@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod commands;
+pub mod disc;
 pub mod process;
 
 pub mod error {
@@ -32,6 +33,9 @@ pub fn run() {
             commands::audio::probe_audio_file,
             commands::audio::probe_audio_files,
             commands::audio::prepare_track,
+            commands::disc::detect_drives,
+            commands::disc::inspect_media,
+            commands::disc::get_disc_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
