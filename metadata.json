@@ -1,0 +1,6 @@
+{
+  "name": "Burnt - Audio CD Burner",
+  "description": "A clean, modern, and simple desktop-style Audio CD burner for creating standard Red Book audio discs as easily as making a playlist.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

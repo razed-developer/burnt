@@ -2,16 +2,12 @@
 
 ## Current objective
 
-What part of the application are we currently trying to improve?
+Initial working build of **Burnt (Simple Modern Audio CD Burner)** with audio import, metadata parsing, live preview playback, visual capacity meter, CD-TEXT generation, CUE/TOC export, and simulated Disc-At-Once (DAO) burning workflow.
 
 ## Current test version
 
-- Branch:
-- Commit:
-- Date pulled:
-- Build result:
-
-These can be filled in by Codex or left blank.
+- Branch: main
+- Build result: Clean build (Vite + TypeScript + Tailwind CSS)
 
 ## What I tested
 
