@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTrackList } from "../../hooks/useTrackList";
 import { useDiscInfo } from "../../hooks/useDiscInfo";
 import type { Settings, BurnStatus } from "../../types";
@@ -18,9 +18,18 @@ interface BurnerPageProps {
   onOpenSettings: () => void;
   cdTitle: string;
   onCdTitleChange: (title: string) => void;
+  onTrackCountChange: (count: number) => void;
+  onBurnStatusChange: (status: string) => void;
 }
 
-export function BurnerPage({ settings, onOpenSettings, cdTitle, onCdTitleChange }: BurnerPageProps) {
+export function BurnerPage({
+  settings,
+  onOpenSettings,
+  cdTitle,
+  onCdTitleChange,
+  onTrackCountChange,
+  onBurnStatusChange,
+}: BurnerPageProps) {
   const {
     tracks,
     totalDuration,
@@ -39,6 +48,14 @@ export function BurnerPage({ settings, onOpenSettings, cdTitle, onCdTitleChange 
   const [burnError, setBurnError] = useState<string | null>(null);
   const [burnErrorDetails, setBurnErrorDetails] = useState<string | null>(null);
   const [isProbing, setIsProbing] = useState(false);
+
+  useEffect(() => {
+    onTrackCountChange(tracks.length);
+  }, [tracks.length, onTrackCountChange]);
+
+  useEffect(() => {
+    onBurnStatusChange(burnStatus);
+  }, [burnStatus, onBurnStatusChange]);
 
   const handleFilesAdded = useCallback(
     async (paths: string[]) => {
@@ -188,6 +205,16 @@ export function BurnerPage({ settings, onOpenSettings, cdTitle, onCdTitleChange 
   }, [onCdTitleChange, clearTracks]);
 
   const isBurning = burnStatus !== "idle";
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isBurning) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isBurning]);
 
   return (
     <div className="h-full flex flex-col">

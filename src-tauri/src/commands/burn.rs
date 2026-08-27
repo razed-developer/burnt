@@ -70,12 +70,15 @@ pub fn start_burn(request: BurnRequest, channel: tauri::ipc::Channel<BurnProgres
         match &progress {
             BurnProgress::Stage { stage } => {
                 eprintln!("[burn] stage: {}", stage);
+                let _ = channel.send(progress);
             }
             BurnProgress::TrackWriting { track, total } => {
                 eprintln!("[burn] writing track {}/{}", track, total);
+                let _ = channel.send(progress);
             }
             BurnProgress::Percent { value } => {
                 eprintln!("[burn] progress: {:.0}%", value);
+                let _ = channel.send(progress);
             }
             BurnProgress::Done => {
                 eprintln!("[burn] done");
@@ -91,8 +94,6 @@ pub fn start_burn(request: BurnRequest, channel: tauri::ipc::Channel<BurnProgres
                 let _ = channel.send(progress.clone());
             }
         }
-
-        let _ = channel.send(progress);
     }
 
     BurnResponse {

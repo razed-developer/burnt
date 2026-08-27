@@ -2,7 +2,7 @@
 
 ## Current objective
 
-Phase 4 complete. Proceeding to Phase 5: Polish & real-device testing.
+Phase 5 complete. Proceeding to Phase 6: Real-device testing and final polish.
 
 ## Current test version
 
@@ -10,99 +10,77 @@ Phase 4 complete. Proceeding to Phase 5: Polish & real-device testing.
 - Build result: Clean build (TypeScript + Vite + Cargo, zero warnings)
 - Tests: 3/3 passing (TOC generation)
 
-## What was completed (Phase 4)
+## What was completed (Phase 5)
 
-### Burn Module (Rust)
+### Window Title Updates
 
-- **`src-tauri/src/burn/mod.rs`** — shared types:
-  - `BurnTrack` — index, title, artist, path, duration_secs
-  - `BurnOptions` — drive_path, cd_title, catalog, tracks, speed, simulate, eject
-  - `BurnProgress` — tagged enum (Stage, TrackWriting, Percent, Done, Error)
+- Title now reflects current state: "Burnt", "Burnt -- 3 tracks", "Burnt -- Burning..."
+- CD title appended when set: "Burnt -- 3 tracks -- My Mix"
+- Title updates in real-time as tracks are added/removed and burn status changes
 
-- **`src-tauri/src/burn/toc.rs`** — cdrdao TOC file generation:
-  - CD_DA header, CATALOG line
-  - CD_TEXT with LANGUAGE_MAP and per-track TITLE/PERFORMER
-  - AUDIOFILE entries with escaped paths
-  - 3 unit tests (all passing)
+### Settings Improvements
 
-- **`src-tauri/src/burn/cdrdao.rs`** — cdrdao backend:
-  - `find_cdrdao()` — locates cdrdao on PATH
-  - `burn()` — spawns cdrdao write process
-  - Parses stderr for progress (track writing, percentage, stage changes)
-  - Progress streamed via `mpsc::Sender<BurnProgress>`
-  - Temp directory cleanup after burn
+- Burn speed selector expanded with common values: Automatic, 1x through 48x
+- Escape key closes settings page
 
-### Tauri Commands
+### Error Handling
 
-- `start_burn(request, channel)` — runs burn in background thread, streams progress via Channel
-- `check_cdrdao()` — verifies cdrdao is available
+- `interpret_burn_failure()` function analyzes cdrdao stderr for common failure modes:
+  - No disc detected -- suggests inserting blank CD-R
+  - Power calibration failure -- suggests different disc or lower speed
+  - Speed not supported -- suggests Automatic or lower speed
+  - Permission denied -- suggests sudo or cdrom group (Linux)
+  - Drive busy -- suggests closing other disc software
+  - Read/write error -- suggests new blank CD-R
+- Technical details preserved in expandable section for troubleshooting
 
-### Frontend Integration
+### Bug Fixes
 
-- **`src/services/burn.ts`** — Tauri invoke wrappers:
-  - `startBurn(request, onProgress)` — starts burn with real-time progress callback
-  - `checkCdrdao()` — checks if cdrdao is installed
+- Fixed progress events being sent twice in burn command handler
+- Each BurnProgress variant now sends exactly once
 
-- **BurnerPage updated:**
-  - Replaced simulated interval burn with real `startBurn()` call
-  - Maps BurnProgress events to component state (stage, track, percent, done, error)
-  - Uses settings for drive path, speed, eject preference
+### Keyboard Shortcuts
 
-### Burn Workflow
-
-1. Frontend calls `start_burn` with tracks, drive, title, speed
-2. Rust generates TOC file with CD-TEXT from track metadata
-3. Rust spawns `cdrdao write` process
-4. Progress parsed from cdrdao stderr and streamed to frontend
-5. Frontend updates BurnProgress UI in real-time
-6. On completion: success screen; on error: friendly error with details
+- Escape closes settings page
+- Escape prevented during burn (safety)
 
 ## Testing checklist for the next build
 
-- [ ] cdrdao is detected on PATH
-- [ ] Burn starts and shows preparing stage
-- [ ] Burning stage shows track progress
-- [ ] Finalizing stage shows after all tracks written
-- [ ] Success screen appears on completion
-- [ ] Error screen appears with message if burn fails
-- [ ] "Try Again" button retries the burn
-- [ ] "Cancel" button returns to track list
-- [ ] Drive path is correctly passed to cdrdao
-- [ ] Burn speed setting is respected
-- [ ] CD title appears in TOC file
-- [ ] Track titles and artists appear in TOC CD-TEXT
+- [ ] Window title updates when tracks are added
+- [ ] Window title shows "Burning..." during burn
+- [ ] Window title includes CD title when set
+- [ ] Burn speed selector shows all options in settings
+- [ ] Escape key closes settings
+- [ ] Error messages are user-friendly for common failures
+- [ ] Error details expandable for technical troubleshooting
+- [ ] No duplicate progress events during burn
 
-## Proposed Phase 5 Implementation Plan
+## Proposed Phase 6 Implementation Plan
 
-Phase 5 focuses on polish and real-device testing.
+Phase 6 is real-device testing and final polish.
 
-### Step 1: Real Device Testing
+### Step 1: Hardware Testing
 
 - Test with actual CD-R and CD-RW media
 - Verify cdrdao progress parsing with real hardware
 - Test error cases (bad disc, drive busy, etc.)
+- Verify disc detection with various drive types
 
-### Step 2: UI Polish
+### Step 2: Final Polish
 
-- Smooth transitions between burn stages
-- Better empty states
-- Keyboard shortcuts
-- Window title updates
+- Smooth animations for state transitions
+- Loading states for long operations
+- About page with version info
+- Keyboard shortcuts for common actions
 
-### Step 3: Settings Improvements
+### Step 3: Distribution
 
-- Burn speed selector with detected speeds
-- Default CD title setting
-- Recent compilations history
-
-### Step 4: Error Handling Polish
-
-- User-friendly error messages for all failure modes
-- Recovery suggestions
-- Technical details accessible but not prominent
+- Windows installer (NSIS)
+- Linux AppImage/deb
+- Application icon
+- Metadata and descriptions
 
 ## Deliberately Postponed
 
-- IMAPI2 COM integration (Windows-native burning) — defer to after cdrdao works on both platforms
-- Distribution packaging (Phase 6)
+- IMAPI2 COM integration (Windows-native burning) -- defer to after cdrdao works on both platforms
 - License choice

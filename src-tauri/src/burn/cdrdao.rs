@@ -107,6 +107,7 @@ pub fn burn(
 
     let total_tracks = burn_tracks.len() as u32;
     let mut current_track: u32 = 0;
+    let mut stderr_log = Vec::new();
 
     for line in reader.lines() {
         let line = match line {
@@ -115,6 +116,7 @@ pub fn burn(
         };
 
         eprintln!("[burn] cdrdao: {}", line);
+        stderr_log.push(line.clone());
 
         if let Some(parsed) = parse_cdrdao_line(&line, total_tracks, &mut current_track) {
             let _ = tx.send(parsed);
@@ -135,8 +137,7 @@ pub fn burn(
         let _ = tx.send(BurnProgress::Done);
         Ok(())
     } else {
-        let msg = "The disc could not be written. The disc may be damaged or the drive reported an error.".into();
-        let details = format!("cdrdao exited with code {}", status.code().unwrap_or(-1));
+        let (msg, details) = interpret_burn_failure(status.code(), &stderr_log);
         let _ = tx.send(BurnProgress::Error {
             message: msg,
             details,
@@ -203,4 +204,56 @@ fn extract_percent(line: &str) -> Option<f64> {
         }
     }
     None
+}
+
+fn interpret_burn_failure(exit_code: Option<i32>, stderr: &[String]) -> (String, String) {
+    let combined = stderr.join("\n").to_lowercase();
+    let code = exit_code.unwrap_or(-1);
+
+    if combined.contains("no disk") || combined.contains("no disc") || combined.contains("medium not found") {
+        return (
+            "No disc detected. Please insert a blank CD-R and try again.".into(),
+            format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+        );
+    }
+
+    if combined.contains("power calibration") || combined.contains("power cal") {
+        return (
+            "The drive could not calibrate power for this disc. Try a different brand of CD-R or lower the burn speed.".into(),
+            format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+        );
+    }
+
+    if combined.contains("cannot") && combined.contains("speed") {
+        return (
+            "The drive cannot write at the selected speed. Try Automatic or a lower speed.".into(),
+            format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+        );
+    }
+
+    if combined.contains("permission denied") || combined.contains("access denied") {
+        return (
+            "Permission denied. On Linux, you may need to run with sudo or add yourself to the cdrom group.".into(),
+            format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+        );
+    }
+
+    if combined.contains("busy") || combined.contains("device or resource busy") {
+        return (
+            "The drive is busy. Close any other disc software and try again.".into(),
+            format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+        );
+    }
+
+    if combined.contains("read error") || combined.contains("i/o error") {
+        return (
+            "A read/write error occurred. The disc may be damaged. Try a new blank CD-R.".into(),
+            format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+        );
+    }
+
+    (
+        "The disc could not be written. The disc may be damaged or the drive reported an error.".into(),
+        format!("cdrdao exited with code {}\n{}", code, stderr.join("\n")),
+    )
 }

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { Settings } from "../../types";
 import type { Theme } from "../../hooks/useTheme";
 
@@ -12,6 +13,15 @@ export function SettingsPage({
   onSettingsChange,
   onClose,
 }: SettingsPageProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
   const update = (patch: Partial<Settings>) => {
     onSettingsChange({ ...settings, ...patch });
   };
@@ -102,6 +112,15 @@ export function SettingsPage({
               className="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded focus:outline-none focus:ring-1 focus:ring-accent"
             >
               <option value="automatic">Automatic</option>
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+              <option value="8">8x</option>
+              <option value="16">16x</option>
+              <option value="24">24x</option>
+              <option value="32">32x</option>
+              <option value="40">40x</option>
+              <option value="48">48x</option>
             </select>
           </div>
         </section>
