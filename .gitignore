@@ -19,3 +19,10 @@ Thumbs.db
 # Env
 .env
 .env.local
+
+# Bundled tools (download via src-tauri/bin/download-tools.ps1)
+src-tauri/bin/ffmpeg/
+src-tauri/bin/cdrdao/
+src-tauri/bin/*.exe
+src-tauri/bin/*.dll
+src-tauri/bin/*.zip

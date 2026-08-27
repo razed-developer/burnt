@@ -99,9 +99,34 @@ pub fn find_tool(name: &str) -> Option<String> {
     }
 }
 
+fn find_bundled(name: &str) -> Option<String> {
+    // Check next to the application executable for bundled binaries
+    let exe_dir = std::env::current_exe().ok()?;
+    let dir = exe_dir.parent()?;
+
+    let extensions = if cfg!(target_os = "windows") {
+        &[".exe", ""][..]
+    } else {
+        &["", ""][..]
+    };
+
+    for ext in extensions {
+        let candidate = dir.join(format!("{}{}", name, ext));
+        if candidate.is_file() {
+            return Some(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    None
+}
+
 fn find_tool_windows(name: &str) -> Option<String> {
-    // Check PATH directly to avoid "could not determine if gui app" dialog
-    // that Windows shows when running `where` from a GUI process
+    // 1. Check bundled binaries (next to exe)
+    if let Some(path) = find_bundled(name) {
+        return Some(path);
+    }
+
+    // 2. Check PATH directly to avoid "could not determine if gui app" dialog
     let extensions = ["", ".exe", ".cmd", ".bat", ".com"];
     if let Ok(path_var) = std::env::var("PATH") {
         for dir in path_var.split(';') {
@@ -118,7 +143,7 @@ fn find_tool_windows(name: &str) -> Option<String> {
         }
     }
 
-    // Fallback: try `where` via cmd.exe to avoid GUI dialog
+    // 3. Fallback: try `where` via cmd.exe
     let output = Command::new("cmd")
         .args(["/C", "where", name])
         .stdin(Stdio::null())
@@ -136,6 +161,12 @@ fn find_tool_windows(name: &str) -> Option<String> {
 }
 
 fn find_tool_unix(name: &str) -> Option<String> {
+    // 1. Check bundled binaries (next to exe)
+    if let Some(path) = find_bundled(name) {
+        return Some(path);
+    }
+
+    // 2. Check PATH via `which`
     let output = Command::new("which")
         .arg(name)
         .stdin(Stdio::null())
