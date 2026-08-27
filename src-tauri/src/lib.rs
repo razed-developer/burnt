@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod burn;
 pub mod commands;
 pub mod disc;
 pub mod process;
@@ -36,6 +37,8 @@ pub fn run() {
             commands::disc::detect_drives,
             commands::disc::inspect_media,
             commands::disc::get_disc_info,
+            commands::burn::start_burn,
+            commands::burn::check_cdrdao,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

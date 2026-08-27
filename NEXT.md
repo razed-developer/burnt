@@ -2,121 +2,107 @@
 
 ## Current objective
 
-Phase 3 complete. Proceeding to Phase 4: Burning.
+Phase 4 complete. Proceeding to Phase 5: Polish & real-device testing.
 
 ## Current test version
 
 - Branch: main
-- Build result: Clean build (TypeScript + Vite + Cargo)
+- Build result: Clean build (TypeScript + Vite + Cargo, zero warnings)
+- Tests: 3/3 passing (TOC generation)
 
-## What was completed (Phase 3)
+## What was completed (Phase 4)
 
-### Rust Disc Detection Module
+### Burn Module (Rust)
 
-- **Windows** (`src-tauri/src/disc/platform/windows.rs`):
-  - Drive enumeration via `GetLogicalDrives` + `GetDriveTypeW` (DRIVE_CDROM = 5)
-  - Media inspection via `CreateFileW` to check media presence
-  - cdrdao fallback for detailed disc info (blank, capacity, type)
+- **`src-tauri/src/burn/mod.rs`** — shared types:
+  - `BurnTrack` — index, title, artist, path, duration_secs
+  - `BurnOptions` — drive_path, cd_title, catalog, tracks, speed, simulate, eject
+  - `BurnProgress` — tagged enum (Stage, TrackWriting, Percent, Done, Error)
 
-- **Linux** (`src-tauri/src/disc/platform/linux.rs`):
-  - Drive enumeration via udev (`ID_CDROM=1` property)
-  - Legacy path fallback (`/dev/sr0`, `/dev/cdrom`, `/dev/dvd`)
-  - Media inspection via sysfs and udev properties
-  - Blank media type detection (CD-R, CD-RW)
+- **`src-tauri/src/burn/toc.rs`** — cdrdao TOC file generation:
+  - CD_DA header, CATALOG line
+  - CD_TEXT with LANGUAGE_MAP and per-track TITLE/PERFORMER
+  - AUDIOFILE entries with escaped paths
+  - 3 unit tests (all passing)
 
-- **Shared types** (`src-tauri/src/disc/mod.rs`):
-  - `DriveInfo` — name, path, can_write_cd, is_writable
-  - `MediaInfo` — has_media, is_blank, is_writable, capacity_minutes, media_type, disc_state
-  - `DiscState` enum — NoDrive, NoMedia, Blank, NotBlank, NotWritable, Unknown
+- **`src-tauri/src/burn/cdrdao.rs`** — cdrdao backend:
+  - `find_cdrdao()` — locates cdrdao on PATH
+  - `burn()` — spawns cdrdao write process
+  - Parses stderr for progress (track writing, percentage, stage changes)
+  - Progress streamed via `mpsc::Sender<BurnProgress>`
+  - Temp directory cleanup after burn
 
 ### Tauri Commands
 
-- `detect_drives()` — enumerate optical writers
-- `inspect_media(drivePath)` — get disc info for specific drive
-- `get_disc_info()` — auto-detect first drive and inspect
+- `start_burn(request, channel)` — runs burn in background thread, streams progress via Channel
+- `check_cdrdao()` — verifies cdrdao is available
 
 ### Frontend Integration
 
-- **Disc service** (`src/services/disc.ts`):
-  - `detectDrives()`, `inspectMedia()`, `getDiscInfo()` — Tauri invoke wrappers
+- **`src/services/burn.ts`** — Tauri invoke wrappers:
+  - `startBurn(request, onProgress)` — starts burn with real-time progress callback
+  - `checkCdrdao()` — checks if cdrdao is installed
 
-- **useDiscInfo hook** updated:
-  - Calls real `getDiscInfo()` on mount
-  - Polls every 3 seconds for disc changes
-  - Maps Rust `DiscState` to TypeScript `DiscState`
-  - Graceful fallback if detection fails
+- **BurnerPage updated:**
+  - Replaced simulated interval burn with real `startBurn()` call
+  - Maps BurnProgress events to component state (stage, track, percent, done, error)
+  - Uses settings for drive path, speed, eject preference
 
-- **DiscStatus** shows:
-  - Drive name when detected
-  - Plain-language disc state messages
-  - Color-coded states (green for blank, yellow for not-blank, red for not-writable)
+### Burn Workflow
 
-### Build Verification
-
-- TypeScript: zero errors
-- Vite: clean production build
-- Cargo: clean build with zero warnings
+1. Frontend calls `start_burn` with tracks, drive, title, speed
+2. Rust generates TOC file with CD-TEXT from track metadata
+3. Rust spawns `cdrdao write` process
+4. Progress parsed from cdrdao stderr and streamed to frontend
+5. Frontend updates BurnProgress UI in real-time
+6. On completion: success screen; on error: friendly error with details
 
 ## Testing checklist for the next build
 
-- [ ] Drive detection runs on startup
-- [ ] Drive name is displayed in disc status
-- [ ] No-drive state shows "No CD burner found"
-- [ ] No-media state shows "Please insert a blank CD"
-- [ ] Blank CD shows "Blank CD-R" in green
-- [ ] Non-blank disc shows warning
-- [ ] Disc status updates when disc is inserted/removed
-- [ ] Polling stops when component unmounts
-- [ ] No TypeScript errors
-- [ ] No Cargo build errors
+- [ ] cdrdao is detected on PATH
+- [ ] Burn starts and shows preparing stage
+- [ ] Burning stage shows track progress
+- [ ] Finalizing stage shows after all tracks written
+- [ ] Success screen appears on completion
+- [ ] Error screen appears with message if burn fails
+- [ ] "Try Again" button retries the burn
+- [ ] "Cancel" button returns to track list
+- [ ] Drive path is correctly passed to cdrdao
+- [ ] Burn speed setting is respected
+- [ ] CD title appears in TOC file
+- [ ] Track titles and artists appear in TOC CD-TEXT
 
-## Proposed Phase 4 Implementation Plan
+## Proposed Phase 5 Implementation Plan
 
-Phase 4 implements the actual burn workflow.
+Phase 5 focuses on polish and real-device testing.
 
-### Step 1: Burn Backend Abstraction
+### Step 1: Real Device Testing
 
-- `BurnBackend` trait with platform implementations
-- Windows: IMAPI2 via COM
-- Linux: cdrdao subprocess
+- Test with actual CD-R and CD-RW media
+- Verify cdrdao progress parsing with real hardware
+- Test error cases (bad disc, drive busy, etc.)
 
-### Step 2: Burn Preparation
+### Step 2: UI Polish
 
-- Generate TOC file (Linux) or IMAPI2 stream (Windows)
-- CD-TEXT generation from track metadata
-- Temporary file management
+- Smooth transitions between burn stages
+- Better empty states
+- Keyboard shortcuts
+- Window title updates
 
-### Step 3: Burn Execution
+### Step 3: Settings Improvements
 
-- Initiate burn with progress reporting
-- Parse cdrdao stderr for progress (Linux)
-- IMAPI2 COM events for progress (Windows)
+- Burn speed selector with detected speeds
+- Default CD title setting
+- Recent compilations history
 
-### Step 4: Burn Completion
+### Step 4: Error Handling Polish
 
-- Finalization handling
-- Success/failure reporting
-- Disc eject option
-- Burn Another flow
-
-### Step 5: Error Handling
-
-- Friendly error messages for common failures
-- Technical details for troubleshooting
-- Recovery without losing track list
-
-## Next Implementation Batch
-
-- [ ] Create BurnBackend trait and platform stubs
-- [ ] Implement TOC file generation for cdrdao
-- [ ] Implement CD-TEXT generation from track metadata
-- [ ] Create Tauri commands for burn workflow
-- [ ] Wire burn progress to frontend BurnProgress component
-- [ ] Test simulated burn flow with real TOC generation
+- User-friendly error messages for all failure modes
+- Recovery suggestions
+- Technical details accessible but not prominent
 
 ## Deliberately Postponed
 
-- IMAPI2 COM integration (requires careful unsafe Rust) — defer to after cdrdao works
-- Distribution packaging (Phase 5)
-- Hardware testing (Phase 6)
+- IMAPI2 COM integration (Windows-native burning) — defer to after cdrdao works on both platforms
+- Distribution packaging (Phase 6)
 - License choice

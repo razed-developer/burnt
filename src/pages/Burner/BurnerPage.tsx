@@ -11,6 +11,7 @@ import { BurnProgress } from "../../components/BurnProgress/BurnProgress";
 import { formatDuration } from "../../utils/timeFormat";
 import { probeAudioFiles } from "../../services/audio";
 import type { ProbeResult } from "../../services/audio";
+import { startBurn } from "../../services/burn";
 
 interface BurnerPageProps {
   settings: Settings;
@@ -87,7 +88,7 @@ export function BurnerPage({ settings, onOpenSettings, cdTitle, onCdTitleChange 
     return null;
   })();
 
-  const handleStartBurn = useCallback(() => {
+  const handleStartBurn = useCallback(async () => {
     if (!canBurn) return;
     setBurnStatus("preparing");
     setBurnStage("preparing");
@@ -95,39 +96,67 @@ export function BurnerPage({ settings, onOpenSettings, cdTitle, onCdTitleChange 
     setBurnError(null);
     setBurnErrorDetails(null);
 
-    let stageIndex = 0;
-    const stages = ["preparing", "burning", "finalizing"];
-    let currentTrackIdx = 0;
     const validTracks = tracks.filter((t) => t.isValid);
+    const speed = settings.burnSpeed === "automatic" ? 0 : parseInt(settings.burnSpeed, 10);
 
-    const interval = setInterval(() => {
-      setBurnProgress((prev) => {
-        const next = prev + 2 + Math.random() * 3;
-        if (next >= 100) {
-          stageIndex++;
-          if (stageIndex >= stages.length) {
-            clearInterval(interval);
-            setBurnStatus("success");
-            return 100;
+    try {
+      const result = await startBurn(
+        {
+          drive_path: disc.drivePath ?? "",
+          cd_title: cdTitle || "Untitled",
+          catalog: "",
+          tracks: validTracks.map((t, i) => ({
+            index: i + 1,
+            title: t.title,
+            artist: t.artist,
+            path: t.path,
+            duration_secs: t.duration,
+          })),
+          speed: isNaN(speed) ? 0 : speed,
+          simulate: false,
+          eject: settings.ejectAfterBurn,
+        },
+        (event) => {
+          switch (event.type) {
+            case "stage":
+              setBurnStage(event.data.stage);
+              if (event.data.stage === "burning") setBurnProgress(0);
+              break;
+            case "track":
+              setBurnCurrentTrack(event.data.track);
+              setBurnProgress(
+                ((event.data.track - 1) / event.data.total) * 100
+              );
+              break;
+            case "percent":
+              if (event.data.value > burnProgress) {
+                setBurnProgress(event.data.value);
+              }
+              break;
+            case "done":
+              setBurnStatus("success");
+              setBurnProgress(100);
+              break;
+            case "error":
+              setBurnStatus("failed");
+              setBurnError(event.data.message);
+              setBurnErrorDetails(event.data.details);
+              break;
           }
-          setBurnStage(stages[stageIndex]);
-          return 0;
         }
-        if (stages[stageIndex] === "burning") {
-          const trackIdx = Math.floor(
-            (next / 100) * validTracks.length
-          );
-          if (trackIdx !== currentTrackIdx) {
-            currentTrackIdx = trackIdx;
-            setBurnCurrentTrack(trackIdx + 1);
-          }
-        }
-        return next;
-      });
-    }, 200);
+      );
 
-    void settings;
-  }, [canBurn, tracks, settings]);
+      if (!result.success) {
+        setBurnStatus("failed");
+        setBurnError(result.message);
+      }
+    } catch (err) {
+      setBurnStatus("failed");
+      setBurnError(
+        err instanceof Error ? err.message : "An unexpected error occurred"
+      );
+    }
+  }, [canBurn, tracks, settings, disc.drivePath, cdTitle]);
 
   const handleRetry = useCallback(() => {
     setBurnStatus("idle");
