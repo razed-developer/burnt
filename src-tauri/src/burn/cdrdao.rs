@@ -33,24 +33,51 @@ pub fn burn(
     let temp_dir = super::generate_temp_dir()?;
     let toc_path = temp_dir.join("disc.toc");
 
-    let burn_tracks: Vec<BurnTrack> = options
-        .tracks
-        .iter()
-        .enumerate()
-        .map(|(i, t)| BurnTrack {
-            index: (i + 1) as u32,
-            title: t.title.clone(),
-            artist: t.artist.clone(),
-            path: t.path.clone(),
-            duration_secs: t.duration_secs,
-        })
-        .collect();
-
     let _ = tx.send(BurnProgress::Stage {
         stage: "preparing".into(),
     });
 
-    super::toc::generate_toc(&burn_tracks, &options.cd_title, &options.catalog, &toc_path)?;
+    // Convert all source tracks to CD-DA WAV before generating the TOC.
+    // cdrdao requires uncompressed PCM WAV — it cannot decode MP3/FLAC/etc.
+    let total = options.tracks.len() as u32;
+    let mut converted_tracks: Vec<BurnTrack> = Vec::with_capacity(options.tracks.len());
+
+    for (i, track) in options.tracks.iter().enumerate() {
+        let wav_name = format!("track-{:03}.wav", i + 1);
+        let wav_path = temp_dir.join(&wav_name);
+
+        eprintln!("[burn] converting track {}/{}: {} -> {}",
+            i + 1, total, track.path, wav_path.display());
+
+        let result = crate::audio::conversion::convert_to_cdda(
+            std::path::Path::new(&track.path),
+            &wav_path,
+        );
+
+        if !result.success {
+            let _ = std::fs::remove_dir_all(&temp_dir);
+            let err_msg = result.error.unwrap_or_else(|| "Conversion failed".into());
+            return Err(format!(
+                "Failed to convert track {} ({}): {}",
+                i + 1, track.title, err_msg
+            ));
+        }
+
+        converted_tracks.push(BurnTrack {
+            index: (i + 1) as u32,
+            title: track.title.clone(),
+            artist: track.artist.clone(),
+            path: wav_path.to_string_lossy().to_string(),
+            duration_secs: track.duration_secs,
+        });
+    }
+
+    eprintln!("[burn] all {} tracks converted to CD-DA WAV", total);
+
+    if let Err(e) = super::toc::generate_toc(&converted_tracks, &options.cd_title, &options.catalog, &toc_path) {
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        return Err(e);
+    }
 
     let _ = tx.send(BurnProgress::Stage {
         stage: "burning".into(),
@@ -92,17 +119,25 @@ pub fn burn(
         eprintln!("[burn] child working dir: {}", parent.display());
     }
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| {
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => {
             eprintln!("[burn] FAILED to spawn cdrdao: {}", e);
-            format!("Failed to start cdrdao: {}", e)
-        })?;
+            let _ = std::fs::remove_dir_all(&temp_dir);
+            return Err(format!("Failed to start cdrdao: {}", e));
+        }
+    };
 
-    let stderr = child.stderr.take().ok_or("Failed to capture cdrdao output")?;
+    let stderr = match child.stderr.take() {
+        Some(s) => s,
+        None => {
+            let _ = std::fs::remove_dir_all(&temp_dir);
+            return Err("Failed to capture cdrdao output".into());
+        }
+    };
     let reader = BufReader::new(stderr);
 
-    let total_tracks = burn_tracks.len() as u32;
+    let total_tracks = converted_tracks.len() as u32;
     let mut current_track: u32 = 0;
     let mut stderr_log = Vec::new();
 
@@ -120,9 +155,13 @@ pub fn burn(
         }
     }
 
-    let status = child
-        .wait()
-        .map_err(|e| format!("Failed to wait for cdrdao: {}", e))?;
+    let status = match child.wait() {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = std::fs::remove_dir_all(&temp_dir);
+            return Err(format!("Failed to wait for cdrdao: {}", e));
+        }
+    };
 
     eprintln!("[burn] cdrdao exited with code: {:?}", status.code());
     if stderr_log.is_empty() {
