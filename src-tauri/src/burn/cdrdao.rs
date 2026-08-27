@@ -21,6 +21,14 @@ pub fn burn(
     tx: mpsc::Sender<BurnProgress>,
 ) -> Result<(), String> {
     let cdrdao_path = find_cdrdao()?;
+    eprintln!("[burn] cdrdao resolved to: {}", cdrdao_path);
+    eprintln!("[burn] exe dir: {}", std::env::current_exe()
+        .map(|p| p.parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default())
+        .unwrap_or_default());
+    eprintln!("[burn] working dir: {}", std::env::current_dir()
+        .map(|d| d.to_string_lossy().to_string())
+        .unwrap_or_default());
+    eprintln!("[burn] PATH: {}", std::env::var("PATH").unwrap_or_default());
 
     let temp_dir = super::generate_temp_dir()?;
     let toc_path = temp_dir.join("disc.toc");
@@ -68,6 +76,7 @@ pub fn burn(
     args.push(toc_path.to_string_lossy().to_string());
 
     eprintln!("[burn] running: cdrdao {}", args.join(" "));
+    eprintln!("[burn] toc file: {}", toc_path.to_string_lossy());
 
     let mut cmd = Command::new(&cdrdao_path);
     cmd.args(&args)
@@ -77,9 +86,18 @@ pub fn burn(
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
 
+    // Set working directory to cdrdao's parent so relative DLLs are found
+    if let Some(parent) = std::path::Path::new(&cdrdao_path).parent() {
+        cmd.current_dir(parent);
+        eprintln!("[burn] child working dir: {}", parent.display());
+    }
+
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to start cdrdao: {}", e))?;
+        .map_err(|e| {
+            eprintln!("[burn] FAILED to spawn cdrdao: {}", e);
+            format!("Failed to start cdrdao: {}", e)
+        })?;
 
     let stderr = child.stderr.take().ok_or("Failed to capture cdrdao output")?;
     let reader = BufReader::new(stderr);
@@ -105,6 +123,11 @@ pub fn burn(
     let status = child
         .wait()
         .map_err(|e| format!("Failed to wait for cdrdao: {}", e))?;
+
+    eprintln!("[burn] cdrdao exited with code: {:?}", status.code());
+    if stderr_log.is_empty() {
+        eprintln!("[burn] cdrdao produced no stderr output");
+    }
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 

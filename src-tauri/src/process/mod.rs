@@ -99,6 +99,46 @@ pub fn find_tool(name: &str) -> Option<String> {
     }
 }
 
+/// On Windows, add the application's directory and `bin/` subdirectory to the
+/// DLL search path so bundled sidecar DLLs (e.g. msys-*.dll) are found.
+/// Safe to call on non-Windows (no-op).
+pub fn ensure_dll_dirs() {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::core::PCWSTR;
+        use windows::Win32::System::LibraryLoader::AddDllDirectory;
+
+        let exe_dir = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let Some(parent) = exe_dir.parent() else {
+            return;
+        };
+
+        // Add the exe's own directory (where externalBin places sidecars)
+        if let Some(dir) = parent.to_str() {
+            let wide: Vec<u16> = dir.encode_utf16().chain(std::iter::once(0)).collect();
+            unsafe {
+                let _ = AddDllDirectory(PCWSTR::from_raw(wide.as_ptr()));
+            }
+            eprintln!("[dll] added to search path: {}", dir);
+        }
+
+        // Also add the `bin/` subdirectory (where resources may land)
+        let bin_dir = parent.join("bin");
+        if bin_dir.is_dir() {
+            if let Some(dir) = bin_dir.to_str() {
+                let wide: Vec<u16> = dir.encode_utf16().chain(std::iter::once(0)).collect();
+                unsafe {
+                    let _ = AddDllDirectory(PCWSTR::from_raw(wide.as_ptr()));
+                }
+                eprintln!("[dll] added to search path: {}", dir);
+            }
+        }
+    }
+}
+
 fn find_bundled(name: &str) -> Option<String> {
     // Check next to the application executable for bundled binaries
     let exe_dir = std::env::current_exe().ok()?;

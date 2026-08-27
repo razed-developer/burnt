@@ -105,16 +105,22 @@ pub fn inspect_media(drive_path: &str) -> MediaInfo {
 
 fn try_cdao_inspect(letter: char) -> Option<MediaInfo> {
     let cdrdao_path = crate::process::find_tool("cdrdao")?;
-    let output = std::process::Command::new(&cdrdao_path)
-        .args(["disk-info", &format!("--device={}", letter)])
+    eprintln!("[disc] cdrdao path: {}", cdrdao_path);
+    let mut cmd = std::process::Command::new(&cdrdao_path);
+    cmd.args(["disk-info", &format!("--device={}", letter)])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .ok()?;
+        .creation_flags(CREATE_NO_WINDOW);
+    if let Some(parent) = std::path::Path::new(&cdrdao_path).parent() {
+        cmd.current_dir(parent);
+    }
+    let output = cmd.output().ok()?;
 
+    eprintln!("[disc] cdrdao disk-info exit: {:?}", output.status.code());
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("[disc] cdrdao disk-info stderr: {}", stderr);
         return None;
     }
 
