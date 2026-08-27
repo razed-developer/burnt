@@ -2,186 +2,114 @@
 
 ## Current objective
 
-Phase 0 complete. Proceeding to Phase 1: UI Prototype.
+Phase 1 complete. Proceeding to Phase 2: Audio Pipeline.
 
 ## Current test version
 
 - Branch: main
-- Build result: Not yet scaffolded
+- Build result: Clean build (TypeScript + Vite + Cargo)
 
-## Decisions Made (Phase 0)
+## What was completed (Phase 1)
 
-### Burning Backend
-
-| Platform | Backend | Reason |
-|----------|---------|--------|
-| Windows | IMAPI2 (COM, built-in) | Zero licensing issues. Full DAO + CD-TEXT. No external tool. |
-| Linux | cdrdao (user-installed) | Gold standard for DAO audio CD. GPL-2.0 — must not bundle. |
-
-Rejected: wodim (dead), cdrecord (licensing conflict), libisoburn (data-only), custom Rust SCSI (too much effort).
-
-### Optical Drive Detection
-
-| Platform | Enumeration | Hotplug | Media Info |
-|----------|------------|---------|------------|
-| Windows | WMI (`Win32_CDROMDrive`) | `WM_DEVICECHANGE` | IMAPI2 `GetMediaState()` |
-| Linux | udev enumerator | udev monitor on `block` | SCSI `READ DISC INFORMATION` via SG_IO |
-
-### Audio Pipeline
-
-- **FFprobe** for metadata (JSON output, concurrency-limited)
-- **FFmpeg** for conversion to CD-DA PCM WAV (44100/16/stereo)
-- Both bundled as sidecar binaries
-- Rust-native probing via `symphonia`/`lofty` is a future optimization
-
-### Linux Permissions
-
-- Require `cdrom` group membership
-- Detect permission issues and show helpful guidance
-- Provide udev rule documentation
-- Open `/dev/sr0` directly via SG_IO (no setuid binaries)
-
-### Portable Mode
-
-- Portable if `data/` directory exists next to executable
-- Installed uses OS-appropriate paths (`%APPDATA%` on Windows, `~/.config` on Linux)
-- Settings stored as JSON
-- All paths relative to executable directory, never CWD
-
-## Technical Risks
-
-1. **IMAPI2 Rust bindings** — The `windows` crate has raw COM interfaces. Requires careful `unsafe` usage. Mitigation: wrap behind safe abstractions early.
-2. **cdrdao stderr format** — Progress parsing depends on cdrdao's output format. Mitigation: parse flexibly, test with versions from Ubuntu, Fedora, Arch.
-3. **USB optical drives** — Some USB drives have quirks with both IMAPI2 and cdrdao. Mitigation: test with representative USB hardware in Phase 6.
-4. **FFmpeg binary size** — Full FFmpeg is ~80-100MB. Mitigation: use "essentials" build (~25-30MB) or custom minimal build (~15MB) with only needed codecs.
-5. **Linux distro permissions** — cdrom group setup varies. Mitigation: clear documentation, detect and explain failures.
-
-## Unresolved Questions
-
-1. Should the app license be MIT, Apache-2.0, or GPL-2.0? (Affects whether we could ever bundle cdrdao.)
-2. Should we use Tauri sidecars or resource bundling for FFmpeg?
-3. How minimal should the FFmpeg build be? (Size vs format coverage tradeoff.)
-4. Should Phase 1 include simulated disc states and burn progress, or focus purely on the track management UI?
-
-## Files Created
-
-- `docs/ARCHITECTURE.md` — system architecture, module boundaries, data flow
-- `docs/BURNING-BACKEND.md` — backend comparison, IMAPI2/cdrdao details, BurnBackend trait
-- `docs/AUDIO-PIPELINE.md` — FFprobe/FFmpeg usage, metadata, conversion, concurrency
-- `docs/PORTABLE-MODE.md` — portable vs installed detection, paths, Tauri config
-- `PREFERENCE.md` — persistent development and design preferences
-
-## Proposed Phase 1 Implementation Plan
-
-Phase 1 builds the complete frontend experience without physical burning. The UI should already feel close to the final product.
-
-### Step 1: Project Scaffolding
-
-- Create Tauri v2 project with React + TypeScript + Vite
-- Set up Tailwind CSS
-- Configure Tauri window (title, size, min size, decorations)
-- Set up project structure per `docs/ARCHITECTURE.md`
-
-### Step 2: Core Types and State
-
-- Define TypeScript types for `Track`, `DiscInfo`, `BurnState`, `Settings`
-- Create React context/hooks for application state
-- Set up Tauri command stubs returning mock data
-
-### Step 3: Main Screen Layout
-
-- Build the main Burner page with:
-  - CD title input
-  - Track list area
-  - Capacity meter
-  - Disc status area
-  - Burn button
-- Empty state with drop zone prompt
-- Settings page skeleton
-
-### Step 4: Audio Import
-
-- File picker with multi-select (via Tauri dialog)
-- Drag-and-drop onto track area
-- Folder drop handling (scan immediate children)
-- Tauri commands for file dialog invocation
-
-### Step 5: Track List
-
-- Track row component (number, title, duration, remove button)
-- Drag-and-drop reordering
-- Track numbering auto-update
-- Duration display per track and total
-- Keyboard-accessible reordering (move up/down buttons)
-
-### Step 6: Capacity Meter
-
-- Visual progress bar (used / remaining)
-- Time display (e.g., "54:31 / 80:00")
-- Over-capacity state with warning
-- Remaining time display
-
-### Step 7: Theme System
-
-- Light / Dark / System toggle
-- CSS variables / design tokens
-- System preference detection
-
-### Step 8: Settings Page
-
-- Theme selector
-- Burn speed (Advanced)
-- Eject after burn toggle
-- About section
-
-### Step 9: Simulated States
-
-- Mock disc status (no disc, blank CD, wrong disc, etc.)
-- Simulated burn progress (preparing, writing, finalizing)
-- Success and failure screens
-- Burn Another flow
-
-### Step 10: Build Verification
-
-- `npm run build` passes
+- Tauri v2 + React + TypeScript + Vite scaffolding
+- Tailwind CSS with light/dark/system theme system using CSS variables
+- Core types: `Track`, `DiscInfo`, `BurnState`, `Settings`
+- Custom hooks: `useTrackList`, `useDiscInfo`, `useTheme`
+- Main Burner page with CD title, track list, capacity meter, disc status, burn button
+- Audio drop zone with file picker and drag-and-drop
+- Track list with move up/down buttons and remove
+- Capacity meter with over-capacity detection
+- Disc status display with simulated states
+- Settings page with theme, drive, burn speed, eject toggle
+- Burn progress UI with preparing/writing/finalizing stages, success, and failure screens
+- Simulated demo tracks for testing
+- Placeholder application icons
 - TypeScript type checking passes
-- Linting passes
-- Application starts and displays correctly
-- All mock flows work
-
-## Next Implementation Batch
-
-- [ ] Scaffold Tauri v2 + React + TypeScript + Vite project
-- [ ] Set up Tailwind CSS and theme system
-- [ ] Create core types and state management
-- [ ] Build main screen layout with empty state
-- [ ] Implement file picker and drag-and-drop import
-- [ ] Build track list with reorder and remove
-- [ ] Build capacity meter
-- [ ] Implement settings page
-- [ ] Add simulated disc states and burn progress
-- [ ] Verify build, types, and lint
-
-## Deliberately Postponed
-
-- FFmpeg/FFprobe integration (Phase 2)
-- Optical drive detection (Phase 3)
-- Actual burning (Phase 4)
-- Distribution packaging (Phase 5)
-- Hardware testing (Phase 6)
-- License choice — deferred until more of the app exists
+- Vite production build passes
+- Cargo build passes
 
 ## Testing checklist for the next build
 
 - [ ] Tauri dev server starts without errors.
 - [ ] Main screen renders with empty state.
+- [ ] "Load demo tracks" button populates track list.
 - [ ] File picker opens and accepts audio files.
 - [ ] Drag-and-drop adds files to the track list.
 - [ ] Track list shows title, duration, and remove button.
-- [ ] Drag-and-drop reordering works.
+- [ ] Move up/down buttons reorder tracks.
 - [ ] Capacity meter updates when tracks are added/removed.
 - [ ] Settings page opens and theme toggle works.
 - [ ] Light and dark themes apply correctly.
+- [ ] Burn button enables/disables based on conditions.
+- [ ] Simulated burn progress completes successfully.
 - [ ] Application window has minimum size enforced.
 - [ ] No TypeScript errors.
-- [ ] No lint errors.
+- [ ] No Cargo build errors.
+
+## Proposed Phase 2 Implementation Plan
+
+Phase 2 implements the audio pipeline: FFprobe for metadata extraction and FFmpeg for conversion to CD-DA PCM.
+
+### Step 1: Process Module
+
+- Centralized process invocation for external tools
+- Safe argument construction (no shell interpolation)
+- `CREATE_NO_WINDOW` on Windows
+- Structured stdout/stderr capture
+- Timeout handling
+
+### Step 2: FFprobe Integration
+
+- `ffprobe -print_format json -show_format -show_streams`
+- Parse metadata: duration, title, artist, album, format
+- Concurrency-limited batch probing (max 8 parallel)
+- Error handling for corrupt/unsupported files
+- Fallback to filename when metadata is absent
+
+### Step 3: Audio Conversion
+
+- `ffmpeg -i input -ar 44100 -ac 2 -acodec pcm_s16le output.wav`
+- Temporary directory per burn session
+- Parallel conversion (max 4 concurrent)
+- Progress tracking
+- Cleanup on success and failure
+
+### Step 4: FFmpeg/FFprobe Bundling
+
+- Download static builds for Windows and Linux
+- Tauri sidecar configuration
+- Binary path resolution (portable vs installed)
+- Verify binaries work from the bundled location
+
+### Step 5: Rust Commands
+
+- `probe_audio_file(path) -> TrackInfo`
+- `probe_audio_files(paths) -> Vec<TrackInfo>`
+- `prepare_tracks(tracks, temp_dir) -> Vec<PreparedTrack>`
+- `get_audio_info(path) -> AudioInfo`
+
+### Step 6: Frontend Integration
+
+- Replace simulated track creation with real Tauri commands
+- Show probe progress when adding many files
+- Display real metadata and durations
+- Handle probe failures gracefully
+
+## Next Implementation Batch
+
+- [ ] Build process invocation module
+- [ ] Implement FFprobe metadata extraction
+- [ ] Implement FFmpeg audio conversion
+- [ ] Configure FFmpeg/FFprobe as Tauri sidecars
+- [ ] Create Rust Tauri commands for audio pipeline
+- [ ] Integrate with frontend track list
+- [ ] Test with MP3, FLAC, WAV, M4A, OGG files
+- [ ] Verify TypeScript and Cargo builds
+
+## Deliberately Postponed
+
+- Optical drive detection (Phase 3)
+- Actual burning (Phase 4)
+- Distribution packaging (Phase 5)
+- Hardware testing (Phase 6)
+- License choice — deferred until more of the app exists
