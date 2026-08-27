@@ -14,9 +14,9 @@
       {
         "title": "Burnt",
         "width": 560,
-        "height": 720,
+        "height": 600,
         "minWidth": 420,
-        "minHeight": 500,
+        "minHeight": 440,
         "resizable": true,
         "decorations": true,
         "center": true

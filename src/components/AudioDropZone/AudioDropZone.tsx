@@ -84,7 +84,7 @@ export function AudioDropZone({ onFilesAdded, hasTracks }: AudioDropZoneProps) {
           ? "border-accent bg-accent/5"
           : "border-border hover:border-accent/50"
         }
-        ${hasTracks ? "p-4" : "p-12"}
+        ${hasTracks ? "p-3" : "p-8"}
       `}
     >
       {!hasTracks && (

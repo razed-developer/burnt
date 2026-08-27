@@ -221,7 +221,7 @@ export function BurnerPage({
 
   return (
     <div className="h-full flex flex-col">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <header className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
         <div className="text-sm font-medium text-text-muted">Burnt</div>
         <div className="flex items-center gap-2">
           {!isBurning && (
@@ -253,7 +253,7 @@ export function BurnerPage({
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6">
+      <main className="flex-1 overflow-y-auto px-5 py-4">
         {isBurning ? (
           <BurnProgress
             status={burnStatus}
@@ -271,14 +271,12 @@ export function BurnerPage({
             title={cdTitle || "Untitled"}
           />
         ) : (
-          <div className="max-w-2xl mx-auto space-y-6">
-            <h1 className="text-xl font-semibold">New Audio CD</h1>
-
+          <div className="max-w-2xl mx-auto space-y-4">
             {reqs && !reqs.all_met && (
               <RequirementsBanner requirements={reqs} />
             )}
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <label className="text-xs font-medium uppercase tracking-wide text-text-faint">
                 CD Title
               </label>
@@ -321,7 +319,7 @@ export function BurnerPage({
               )}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <CapacityMeter
                 usedSeconds={totalDuration}
                 maxSeconds={MAX_CD_SECONDS}
@@ -330,7 +328,7 @@ export function BurnerPage({
               <DiscStatus disc={disc} />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-3 pt-1">
               {burnDisabledReason && (
                 <span className="text-xs text-text-muted">
                   {burnDisabledReason}

@@ -44,16 +44,17 @@ export function DiscStatus({ disc }: DiscStatusProps) {
   }
 
   return (
-    <div className="space-y-1">
-      <span className="text-xs font-medium uppercase tracking-wide text-text-faint">
+    <div className="flex items-center gap-2 text-sm">
+      <span className="font-medium uppercase tracking-wide text-xs text-text-faint shrink-0">
         Disc
       </span>
-      <div className={`text-sm ${entry.className}`}>
-        {disc.hasDrive && disc.driveName && (
-          <div className="text-text-muted text-xs mb-0.5">{disc.driveName}</div>
-        )}
+      <span className="text-text-faint">{"\u00B7"}</span>
+      {disc.hasDrive && disc.driveName && (
+        <span className="text-text-muted text-xs">{disc.driveName}</span>
+      )}
+      <span className={entry.className + " text-xs"}>
         {message}
-      </div>
+      </span>
     </div>
   );
 }

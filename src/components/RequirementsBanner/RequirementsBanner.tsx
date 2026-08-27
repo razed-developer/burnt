@@ -26,27 +26,20 @@ export function RequirementsBanner({ requirements }: RequirementsBannerProps) {
   }
 
   return (
-    <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 space-y-3">
-      <div className="flex items-start gap-3">
-        <div className="text-warning text-lg shrink-0 mt-0.5">!</div>
-        <div className="space-y-2 flex-1 min-w-0">
-          <div className="text-sm font-medium text-text">
-            Missing requirements
-          </div>
-          <div className="text-xs text-text-muted leading-relaxed space-y-3">
-            {missing.map((m) => (
-              <div key={m.name} className="space-y-1">
-                <div>
-                  <span className="font-medium text-text">{m.name}</span>
-                  <span className="text-text-faint"> &mdash; </span>
-                  <span>{m.purpose}</span>
-                </div>
-                <div className="text-text-faint whitespace-pre-line pl-3 border-l-2 border-border">
-                  {m.install}
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 text-xs">
+      <div className="flex items-center gap-2">
+        <span className="text-warning font-bold shrink-0">!</span>
+        <div className="flex-1 min-w-0">
+          <span className="font-medium text-text">Missing requirements</span>
+          <span className="text-text-faint"> &mdash; </span>
+          {missing.map((m, i) => (
+            <span key={m.name}>
+              {i > 0 && <span className="text-text-faint"> &middot; </span>}
+              <span className="font-medium text-text">{m.name}</span>
+              {" "}
+              <span className="text-text-faint whitespace-pre-line">{m.purpose}</span>
+            </span>
+          ))}
         </div>
       </div>
     </div>

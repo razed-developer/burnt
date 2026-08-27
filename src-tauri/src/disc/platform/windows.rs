@@ -1,4 +1,7 @@
 use crate::disc::{DiscState, DriveInfo, MediaInfo};
+use std::os::windows::process::CommandExt;
+
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub fn detect_drives() -> Vec<DriveInfo> {
     let mut drives = Vec::new();
@@ -101,8 +104,13 @@ pub fn inspect_media(drive_path: &str) -> MediaInfo {
 }
 
 fn try_cdao_inspect(letter: char) -> Option<MediaInfo> {
-    let output = std::process::Command::new("cdrdao")
+    let cdrdao_path = crate::process::find_tool("cdrdao")?;
+    let output = std::process::Command::new(&cdrdao_path)
         .args(["disk-info", &format!("--device={}", letter)])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
 

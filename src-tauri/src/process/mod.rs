@@ -143,21 +143,7 @@ fn find_tool_windows(name: &str) -> Option<String> {
         }
     }
 
-    // 3. Fallback: try `where` via cmd.exe
-    let output = Command::new("cmd")
-        .args(["/C", "where", name])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .ok()
-        .filter(|o| o.status.success())?;
-
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .next()
-        .map(|s| s.trim().to_string())
+    None
 }
 
 fn find_tool_unix(name: &str) -> Option<String> {

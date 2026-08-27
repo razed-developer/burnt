@@ -15,10 +15,10 @@ export function CapacityMeter({ usedSeconds, maxSeconds }: CapacityMeterProps) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <div className="flex items-center justify-between text-sm text-text-muted">
         <span className="font-medium uppercase tracking-wide text-xs text-text-faint">
-          Disc Capacity
+          Capacity
         </span>
         {isOver ? (
           <span className="text-danger font-medium">
@@ -26,14 +26,12 @@ export function CapacityMeter({ usedSeconds, maxSeconds }: CapacityMeterProps) {
           </span>
         ) : (
           <span>
-            {format(usedSeconds)} used
-            <span className="text-text-faint"> &middot; </span>
-            {format(maxSeconds - usedSeconds)} remaining
+            {format(usedSeconds)} / {format(maxSeconds)}
           </span>
         )}
       </div>
 
-      <div className="relative h-3 w-full overflow-hidden rounded bg-surface-overlay">
+      <div className="relative h-2 w-full overflow-hidden rounded bg-surface-overlay">
         <div
           className={`absolute inset-y-0 left-0 rounded transition-all duration-300 ${
             isOver
@@ -44,10 +42,6 @@ export function CapacityMeter({ usedSeconds, maxSeconds }: CapacityMeterProps) {
           }`}
           style={{ width: `${Math.min(ratio * 100, 100)}%` }}
         />
-      </div>
-
-      <div className="text-right text-xs text-text-faint">
-        {format(maxSeconds)} max
       </div>
     </div>
   );
