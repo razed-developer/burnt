@@ -2,85 +2,85 @@
 
 ## Current objective
 
-Phase 5 complete. Proceeding to Phase 6: Real-device testing and final polish.
+Phase 6 complete. App is ready for real-device testing.
 
 ## Current test version
 
 - Branch: main
-- Build result: Clean build (TypeScript + Vite + Cargo, zero warnings)
+- Build result: Clean build (TypeScript + Vite + Cargo)
+- Release: `Burnt_0.1.0_x64-setup.exe` (NSIS installer)
 - Tests: 3/3 passing (TOC generation)
 
-## What was completed (Phase 5)
+## What was completed (Phase 6)
 
-### Window Title Updates
+### Application Icon
 
-- Title now reflects current state: "Burnt", "Burnt -- 3 tracks", "Burnt -- Burning..."
-- CD title appended when set: "Burnt -- 3 tracks -- My Mix"
-- Title updates in real-time as tracks are added/removed and burn status changes
+- Custom SVG icon: CD disc with blue flame accent
+- Generated all platform sizes via `tauri icon`:
+  - Windows: ICO, Appx logos (StoreLogo, Square30-310)
+  - macOS: ICNS
+  - Linux: PNG (32, 64, 128, 256)
+  - iOS: All required sizes
+  - Android: All mipmap densities
 
-### Settings Improvements
+### Distribution Config
 
-- Burn speed selector expanded with common values: Automatic, 1x through 48x
-- Escape key closes settings page
+- **Windows**: NSIS installer + MSI, both x64
+  - Install mode: both (per-user and machine)
+  - Custom installer icon
+- **Linux**: AppImage + deb
+  - deb depends on `cdrdao`
+- **macOS**: ICNS icon, minimum system version 10.15
+- Fixed bundle identifier to avoid macOS `.app` conflict
 
-### Error Handling
+### About Section
 
-- `interpret_burn_failure()` function analyzes cdrdao stderr for common failure modes:
-  - No disc detected -- suggests inserting blank CD-R
-  - Power calibration failure -- suggests different disc or lower speed
-  - Speed not supported -- suggests Automatic or lower speed
-  - Permission denied -- suggests sudo or cdrom group (Linux)
-  - Drive busy -- suggests closing other disc software
-  - Read/write error -- suggests new blank CD-R
-- Technical details preserved in expandable section for troubleshooting
+- Updated Settings > About with version, description, and cdrdao attribution
 
-### Bug Fixes
+### Full Build Pipeline
 
-- Fixed progress events being sent twice in burn command handler
-- Each BurnProgress variant now sends exactly once
+- `tauri build` produces:
+  - `burnt.exe` — release binary
+  - `Burnt_0.1.0_x64-setup.exe` — NSIS installer
+  - `Burnt_0.1.0_x64_en-US.msi` — MSI installer
 
-### Keyboard Shortcuts
+## Testing checklist
 
-- Escape closes settings page
-- Escape prevented during burn (safety)
+- [ ] Install via NSIS installer
+- [ ] Install via MSI
+- [ ] App launches with correct window size
+- [ ] Application icon appears in taskbar
+- [ ] Theme works (light/dark/system)
+- [ ] Drive detection with optical drive present
+- [ ] Disc detection with blank CD-R
+- [ ] Add audio files via dialog
+- [ ] Add audio files via drag-and-drop
+- [ ] Track list shows correct order
+- [ ] Track reordering works
+- [ ] Track removal works
+- [ ] CD title persists across settings navigation
+- [ ] New CD button clears everything
+- [ ] Capacity meter shows correct values
+- [ ] Burn starts with cdrdao (requires cdrdao installed)
+- [ ] Burn progress updates in real-time
+- [ ] Burn success screen appears
+- [ ] Burn error shows friendly message
+- [ ] Settings: theme switching works
+- [ ] Settings: burn speed selection works
+- [ ] Settings: eject toggle works
+- [ ] Escape closes settings
+- [ ] Window title updates with track count
 
-## Testing checklist for the next build
+## Known requirements
 
-- [ ] Window title updates when tracks are added
-- [ ] Window title shows "Burning..." during burn
-- [ ] Window title includes CD title when set
-- [ ] Burn speed selector shows all options in settings
-- [ ] Escape key closes settings
-- [ ] Error messages are user-friendly for common failures
-- [ ] Error details expandable for technical troubleshooting
-- [ ] No duplicate progress events during burn
+- cdrdao must be installed on the system for burning
+  - Windows: install from GitHub releases
+  - Linux: `sudo apt install cdrdao`
+- FFprobe and FFmpeg must be on PATH for audio probing/conversion
 
-## Proposed Phase 6 Implementation Plan
+## Deliberately postponed
 
-Phase 6 is real-device testing and final polish.
-
-### Step 1: Hardware Testing
-
-- Test with actual CD-R and CD-RW media
-- Verify cdrdao progress parsing with real hardware
-- Test error cases (bad disc, drive busy, etc.)
-- Verify disc detection with various drive types
-
-### Step 2: Final Polish
-
-- Smooth animations for state transitions
-- Loading states for long operations
-- About page with version info
-- Keyboard shortcuts for common actions
-
-### Step 3: Distribution
-
-- Windows installer (NSIS)
-- Linux AppImage/deb
-- Application icon
-- Metadata and descriptions
-
-## Deliberately Postponed
-
-- IMAPI2 COM integration (Windows-native burning) -- defer to after cdrdao works on both platforms
+- IMAPI2 COM integration (Windows-native burning without cdrdao)
 - License choice
+- Auto-update mechanism
+- Portable mode detection

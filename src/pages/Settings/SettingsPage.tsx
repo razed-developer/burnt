@@ -129,9 +129,14 @@ export function SettingsPage({
           <h2 className="text-xs font-medium uppercase tracking-wide text-text-faint">
             About
           </h2>
-          <div className="text-sm text-text-muted space-y-1">
+          <div className="text-sm text-text-muted space-y-2">
             <div className="font-medium text-text">Burnt</div>
             <div>Version 0.1.0</div>
+            <div className="text-xs text-text-faint leading-relaxed">
+              A simple audio CD burner.
+              <br />
+              Uses cdrdao for disc writing.
+            </div>
           </div>
         </section>
       </div>

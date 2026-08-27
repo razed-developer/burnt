@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
   "productName": "Burnt",
   "version": "0.1.0",
-  "identifier": "com.burnt.app",
+  "identifier": "com.burnt.burner",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -31,14 +31,29 @@
     "targets": "all",
     "icon": [
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/icon.icns",
       "icons/icon.ico"
     ],
     "windows": {
       "nsis": {
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installMode": "both",
+        "installerIcon": "icons/icon.ico"
       }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "deb": {
+        "depends": ["cdrdao"]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
     }
   },
   "plugins": {
