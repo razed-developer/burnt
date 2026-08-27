@@ -4,6 +4,7 @@ pub fn detect_drives() -> Vec<DriveInfo> {
     let mut drives = Vec::new();
 
     let bitmask = unsafe { windows::Win32::Storage::FileSystem::GetLogicalDrives() };
+    eprintln!("[disc] GetLogicalDrives bitmask: {:#028b}", bitmask);
     if bitmask == 0 {
         return drives;
     }
@@ -11,7 +12,7 @@ pub fn detect_drives() -> Vec<DriveInfo> {
     for i in 0..26u32 {
         if bitmask & (1 << i) != 0 {
             let letter = (b'A' + i as u8) as char;
-            let path = format!("{}\0", letter);
+            let path = format!("{}:\\\0", letter);
             let wide: Vec<u16> = path.encode_utf16().collect();
 
             let drive_type = unsafe {
@@ -19,6 +20,8 @@ pub fn detect_drives() -> Vec<DriveInfo> {
                     windows::core::PCWSTR::from_raw(wide.as_ptr()),
                 )
             };
+
+            eprintln!("[disc] Drive {}: type={}", letter, drive_type);
 
             // DRIVE_CDROM = 5
             if drive_type == 5 {
@@ -44,6 +47,7 @@ pub fn inspect_media(drive_path: &str) -> MediaInfo {
     let letter = match drive_path.chars().next() {
         Some(c) if c.is_ascii_alphabetic() => c.to_ascii_uppercase(),
         _ => {
+            eprintln!("[disc] inspect_media: invalid drive_path '{}'", drive_path);
             return MediaInfo {
                 disc_state: DiscState::Unknown,
                 ..Default::default()
@@ -51,11 +55,14 @@ pub fn inspect_media(drive_path: &str) -> MediaInfo {
         }
     };
 
+    eprintln!("[disc] inspect_media: trying cdrdao for drive {}", letter);
     // Try cdrdao for detailed media info
     if let Some(info) = try_cdao_inspect(letter) {
+        eprintln!("[disc] cdrdao returned: {:?}", info);
         return info;
     }
 
+    eprintln!("[disc] cdrdao unavailable, trying CreateFileW");
     // Fallback: try to open the drive to check if media is present
     let path = format!("\\\\.\\{}:\0", letter);
     let wide: Vec<u16> = path.encode_utf16().collect();

@@ -63,6 +63,7 @@ pub fn inspect_media(drive_path: String) -> MediaResponse {
 #[tauri::command]
 pub fn get_disc_info() -> MediaResponse {
     let drives = disc::detect_drives();
+    eprintln!("[cmd] get_disc_info: detected {} drives", drives.len());
 
     if drives.is_empty() {
         return MediaResponse {
@@ -78,7 +79,9 @@ pub fn get_disc_info() -> MediaResponse {
     }
 
     let drive = &drives[0];
+    eprintln!("[cmd] inspecting drive: {} ({})", drive.name, drive.path);
     let info = disc::inspect_media(&drive.path);
+    eprintln!("[cmd] disc state: {:?}", info.disc_state);
 
     MediaResponse {
         has_media: info.has_media,

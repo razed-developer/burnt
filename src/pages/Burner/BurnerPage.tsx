@@ -15,9 +15,11 @@ import type { ProbeResult } from "../../services/audio";
 interface BurnerPageProps {
   settings: Settings;
   onOpenSettings: () => void;
+  cdTitle: string;
+  onCdTitleChange: (title: string) => void;
 }
 
-export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
+export function BurnerPage({ settings, onOpenSettings, cdTitle, onCdTitleChange }: BurnerPageProps) {
   const {
     tracks,
     totalDuration,
@@ -25,10 +27,10 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
     removeTrack,
     moveTrack,
     createTrack,
+    clearTracks,
   } = useTrackList();
 
   const { disc } = useDiscInfo();
-  const [cdTitle, setCdTitle] = useState("");
   const [burnStatus, setBurnStatus] = useState<BurnStatus>("idle");
   const [burnProgress, setBurnProgress] = useState(0);
   const [burnStage, setBurnStage] = useState("preparing");
@@ -145,17 +147,37 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
     setBurnErrorDetails(null);
   }, []);
 
+  const handleNewCd = useCallback(() => {
+    onCdTitleChange("");
+    clearTracks();
+    setBurnStatus("idle");
+    setBurnProgress(0);
+    setBurnStage("preparing");
+    setBurnCurrentTrack(0);
+    setBurnError(null);
+    setBurnErrorDetails(null);
+  }, [onCdTitleChange, clearTracks]);
+
   const isBurning = burnStatus !== "idle";
 
   return (
     <div className="h-full flex flex-col">
       <header className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div className="text-sm font-medium text-text-muted">Burnt</div>
-        <button
-          onClick={onOpenSettings}
-          className="text-text-muted hover:text-text p-1"
-          aria-label="Settings"
-        >
+        <div className="flex items-center gap-2">
+          {!isBurning && (
+            <button
+              onClick={handleNewCd}
+              className="text-text-muted hover:text-text text-xs px-2 py-1 rounded border border-border hover:border-text-muted transition-colors"
+            >
+              New CD
+            </button>
+          )}
+          <button
+            onClick={onOpenSettings}
+            className="text-text-muted hover:text-text p-1"
+            aria-label="Settings"
+          >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path
               d="M9 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
@@ -169,6 +191,7 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
             />
           </svg>
         </button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 py-6">
@@ -199,7 +222,7 @@ export function BurnerPage({ settings, onOpenSettings }: BurnerPageProps) {
               <input
                 type="text"
                 value={cdTitle}
-                onChange={(e) => setCdTitle(e.target.value)}
+                onChange={(e) => onCdTitleChange(e.target.value)}
                 placeholder="Untitled"
                 className="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-text-faint"
               />

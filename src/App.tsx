@@ -12,6 +12,7 @@ export default function App() {
     theme,
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [cdTitle, setCdTitle] = useState("");
 
   const handleSettingsChange = useCallback(
     (newSettings: Settings) => {
@@ -40,7 +41,12 @@ export default function App() {
           onClose={handleCloseSettings}
         />
       ) : (
-        <BurnerPage settings={settings} onOpenSettings={handleOpenSettings} />
+        <BurnerPage
+          settings={settings}
+          onOpenSettings={handleOpenSettings}
+          cdTitle={cdTitle}
+          onCdTitleChange={setCdTitle}
+        />
       )}
     </div>
   );
