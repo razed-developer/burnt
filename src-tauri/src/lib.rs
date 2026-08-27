@@ -40,6 +40,7 @@ pub fn run() {
             commands::disc::inspect_media,
             commands::disc::get_disc_info,
             commands::burn::start_burn,
+            commands::burn::cancel_burn,
             commands::burn::check_cdrdao,
             commands::requirements::check_requirements,
         ])

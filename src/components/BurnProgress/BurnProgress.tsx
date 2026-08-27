@@ -11,6 +11,9 @@ interface BurnProgressProps {
   errorDetails: string | null;
   onRetry: () => void;
   onDone: () => void;
+  onCancel: () => void;
+  canCancel: boolean;
+  cancelRequested: boolean;
   title: string;
 }
 
@@ -25,6 +28,9 @@ export function BurnProgress({
   errorDetails,
   onRetry,
   onDone,
+  onCancel,
+  canCancel,
+  cancelRequested,
   title,
 }: BurnProgressProps) {
   if (status === "success") {
@@ -155,8 +161,23 @@ export function BurnProgress({
         </div>
       )}
 
-      <div className="text-center text-sm text-text-muted">
-        Please don&apos;t eject the disc.
+      <div className="flex items-center justify-center gap-3">
+        <div className="text-center text-sm text-text-muted">
+          Please don&apos;t eject the disc.
+        </div>
+        {canCancel && (
+          <button
+            onClick={onCancel}
+            disabled={cancelRequested}
+            className={`px-4 py-2 text-sm font-medium border border-border rounded transition-colors ${
+              cancelRequested
+                ? "text-text-faint cursor-not-allowed"
+                : "hover:bg-surface-overlay"
+            }`}
+          >
+            {cancelRequested ? "Cancelling\u2026" : "Cancel"}
+          </button>
+        )}
       </div>
     </div>
   );

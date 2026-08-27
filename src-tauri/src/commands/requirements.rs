@@ -19,11 +19,20 @@ pub struct RequirementsStatus {
 
 #[tauri::command]
 pub fn check_requirements() -> RequirementsStatus {
+    // Windows burns via the built-in IMAPI2 API, so cdrdao is only required on
+    // Linux. It is still bundled for Linux, but it is not a Windows requirement.
+    #[cfg(target_os = "windows")]
+    let cdrdao_required = false;
+    #[cfg(not(target_os = "windows"))]
+    let cdrdao_required = true;
+
     let ffprobe = check_tool("ffprobe");
     let ffmpeg = check_tool("ffmpeg");
     let cdrdao = check_tool("cdrdao");
 
-    let all_met = ffprobe.available && ffmpeg.available && cdrdao.available;
+    let all_met = ffprobe.available
+        && ffmpeg.available
+        && (!cdrdao_required || cdrdao.available);
 
     RequirementsStatus {
         ffprobe,

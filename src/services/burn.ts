@@ -39,6 +39,19 @@ export async function startBurn(
   return invoke<BurnResponse>("start_burn", { request, channel });
 }
 
+/** Request cancellation of the running burn (Windows IMAPI2 backend). */
+export async function cancelBurn(): Promise<boolean> {
+  return invoke<boolean>("cancel_burn");
+}
+
+/** True when running on Windows, where the IMAPI2 backend supports cancelling. */
+export function cancellationSupported(): boolean {
+  if (typeof navigator !== "undefined" && navigator.platform) {
+    return navigator.platform.toLowerCase().includes("win");
+  }
+  return false;
+}
+
 export async function checkCdrdao(): Promise<string> {
   return invoke<string>("check_cdrdao");
 }

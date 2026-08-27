@@ -11,7 +11,7 @@ import { BurnProgress } from "../../components/BurnProgress/BurnProgress";
 import { formatDuration } from "../../utils/timeFormat";
 import { probeAudioFiles } from "../../services/audio";
 import type { ProbeResult } from "../../services/audio";
-import { startBurn } from "../../services/burn";
+import { startBurn, cancelBurn, cancellationSupported } from "../../services/burn";
 import { useRequirements } from "../../hooks/useRequirements";
 import { RequirementsBanner } from "../../components/RequirementsBanner/RequirementsBanner";
 
@@ -115,6 +115,7 @@ export function BurnerPage({
     setBurnProgress(0);
     setBurnError(null);
     setBurnErrorDetails(null);
+    setCancelRequested(false);
 
     const validTracks = tracks.filter((t) => t.isValid);
     const speed = settings.burnSpeed === "automatic" ? 0 : parseInt(settings.burnSpeed, 10);
@@ -196,6 +197,19 @@ export function BurnerPage({
     setBurnErrorDetails(null);
   }, []);
 
+  const [cancelRequested, setCancelRequested] = useState(false);
+
+  const handleCancelBurn = useCallback(async () => {
+    if (cancelRequested) return;
+    setCancelRequested(true);
+    try {
+      await cancelBurn();
+    } catch (err) {
+      console.error("Cancel failed:", err);
+      setCancelRequested(false);
+    }
+  }, [cancelRequested]);
+
   const handleNewCd = useCallback(() => {
     onCdTitleChange("");
     clearTracks();
@@ -268,6 +282,9 @@ export function BurnerPage({
             errorDetails={burnErrorDetails}
             onRetry={handleRetry}
             onDone={handleBurnDone}
+            onCancel={handleCancelBurn}
+            canCancel={cancellationSupported()}
+            cancelRequested={cancelRequested}
             title={cdTitle || "Untitled"}
           />
         ) : (

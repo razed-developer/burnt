@@ -37,45 +37,17 @@ pub fn burn(
         stage: "preparing".into(),
     });
 
-    // Convert all source tracks to CD-DA WAV before generating the TOC.
-    // cdrdao requires uncompressed PCM WAV — it cannot decode MP3/FLAC/etc.
-    let total = options.tracks.len() as u32;
-    let mut converted_tracks: Vec<BurnTrack> = Vec::with_capacity(options.tracks.len());
+    // Decode every source track to a CD-DA WAV. cdrdao requires uncompressed
+    // PCM (it cannot decode MP3/FLAC/etc.), as does the Windows IMAPI2 path.
+    let prepared = super::prepare::convert_all(options, &temp_dir)?;
+    let total_tracks = prepared.len() as u32;
 
-    for (i, track) in options.tracks.iter().enumerate() {
-        let wav_name = format!("track-{:03}.wav", i + 1);
-        let wav_path = temp_dir.join(&wav_name);
+    let converted_tracks: Vec<BurnTrack> = prepared
+        .iter()
+        .map(super::prepare::as_burn_track)
+        .collect();
 
-        eprintln!("[burn] converting track {}/{}: {} -> {}",
-            i + 1, total, track.path, wav_path.display());
-
-        let result = crate::audio::conversion::convert_to_cdda(
-            std::path::Path::new(&track.path),
-            &wav_path,
-        );
-
-        if !result.success {
-            let _ = std::fs::remove_dir_all(&temp_dir);
-            let err_msg = result.error.unwrap_or_else(|| "Conversion failed".into());
-            return Err(format!(
-                "Failed to convert track {} ({}): {}",
-                i + 1, track.title, err_msg
-            ));
-        }
-
-        converted_tracks.push(BurnTrack {
-            index: (i + 1) as u32,
-            title: track.title.clone(),
-            artist: track.artist.clone(),
-            // Use a relative filename; cdrdao runs with CWD = temp_dir so it
-            // resolves these within the temp dir. MSYS cdrdao misreads Windows
-            // absolute paths like `C:/...` as relative ones.
-            path: wav_name,
-            duration_secs: track.duration_secs,
-        });
-    }
-
-    eprintln!("[burn] all {} tracks converted to CD-DA WAV", total);
+    eprintln!("[burn] all {} tracks converted to CD-DA WAV", total_tracks);
 
     if let Err(e) = super::toc::generate_toc(&converted_tracks, &options.cd_title, &options.catalog, &toc_path) {
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -140,7 +112,6 @@ pub fn burn(
     };
     let reader = BufReader::new(stderr);
 
-    let total_tracks = converted_tracks.len() as u32;
     let mut current_track: u32 = 0;
     let mut stderr_log = Vec::new();
 

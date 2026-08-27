@@ -73,14 +73,17 @@ Phase 6 complete. App is ready for real-device testing.
 
 ## Known requirements
 
-- cdrdao must be installed on the system for burning
-  - Windows: install from GitHub releases
+- Burning on **Windows** uses the built-in IMAPI2 API — no cdrdao required.
+- Burning on **Linux** uses cdrdao
   - Linux: `sudo apt install cdrdao`
-- FFprobe and FFmpeg must be on PATH for audio probing/conversion
+- FFprobe and FFmpeg are bundled / used for audio probing and conversion
 
 ## Deliberately postponed
 
-- IMAPI2 COM integration (Windows-native burning without cdrdao)
+- CD-TEXT on the Windows (IMAPI2) backend — IMAPI2 writes CD-TEXT only if the
+  caller supplies pre-encoded R-W subcode data, which is complex and error-prone.
+  The Linux (cdrdao) backend still writes CD-TEXT. Confirm whether to keep CD-TEXT
+  Linux-only for now.
 - License choice
 - Auto-update mechanism
 - Portable mode detection

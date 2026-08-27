@@ -1,8 +1,16 @@
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
+use std::sync::{Arc, OnceLock};
 
 use crate::burn;
 use crate::burn::{BurnOptions, BurnProgress, BurnTrack};
+
+/// Handle used to request cancellation of an in-progress burn.
+fn cancel_flag() -> &'static Arc<AtomicBool> {
+    static FLAG: OnceLock<Arc<AtomicBool>> = OnceLock::new();
+    FLAG.get_or_init(|| Arc::new(AtomicBool::new(false)))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BurnRequest {
@@ -55,9 +63,13 @@ pub fn start_burn(request: BurnRequest, channel: tauri::ipc::Channel<BurnProgres
     };
 
     let (tx, rx) = mpsc::channel();
+    let flag = cancel_flag().clone();
+    flag.store(false, Ordering::SeqCst);
 
     std::thread::spawn(move || {
-        let result = burn::cdrdao::burn(&options, tx.clone());
+        // The IMAPI2 backend consults the shared cancel flag while writing so
+        // a user can abort a running burn (see the `cancel_burn` command).
+        let result = burn::burn(&options, tx.clone(), Some(&flag));
         if let Err(e) = result {
             eprintln!("[burn] burn failed: {}", e);
             let _ = tx.send(BurnProgress::Error {
@@ -109,4 +121,12 @@ pub fn start_burn(request: BurnRequest, channel: tauri::ipc::Channel<BurnProgres
 #[tauri::command]
 pub fn check_cdrdao() -> Result<String, String> {
     burn::cdrdao::find_cdrdao()
+}
+
+/// Request cancellation of a running burn. The Windows IMAPI2 backend aborts
+/// the write on the next stream read after this flag is set.
+#[tauri::command]
+pub fn cancel_burn() -> bool {
+    cancel_flag().store(true, Ordering::SeqCst);
+    true
 }

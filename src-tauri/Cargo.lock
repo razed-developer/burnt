@@ -192,6 +192,7 @@ dependencies = [
  "udev",
  "uuid",
  "windows",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
