@@ -12,6 +12,8 @@ import { formatDuration } from "../../utils/timeFormat";
 import { probeAudioFiles } from "../../services/audio";
 import type { ProbeResult } from "../../services/audio";
 import { startBurn } from "../../services/burn";
+import { useRequirements } from "../../hooks/useRequirements";
+import { RequirementsBanner } from "../../components/RequirementsBanner/RequirementsBanner";
 
 interface BurnerPageProps {
   settings: Settings;
@@ -41,6 +43,7 @@ export function BurnerPage({
   } = useTrackList();
 
   const { disc } = useDiscInfo();
+  const reqs = useRequirements();
   const [burnStatus, setBurnStatus] = useState<BurnStatus>("idle");
   const [burnProgress, setBurnProgress] = useState(0);
   const [burnStage, setBurnStage] = useState("preparing");
@@ -270,6 +273,10 @@ export function BurnerPage({
         ) : (
           <div className="max-w-2xl mx-auto space-y-6">
             <h1 className="text-xl font-semibold">New Audio CD</h1>
+
+            {reqs && !reqs.all_met && (
+              <RequirementsBanner requirements={reqs} />
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium uppercase tracking-wide text-text-faint">

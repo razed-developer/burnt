@@ -39,6 +39,7 @@ pub fn run() {
             commands::disc::get_disc_info,
             commands::burn::start_burn,
             commands::burn::check_cdrdao,
+            commands::requirements::check_requirements,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
