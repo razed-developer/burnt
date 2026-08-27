@@ -61,7 +61,7 @@ pub fn start_burn(request: BurnRequest, channel: tauri::ipc::Channel<BurnProgres
         if let Err(e) = result {
             eprintln!("[burn] burn failed: {}", e);
             let _ = tx.send(BurnProgress::Error {
-                message: "Burn failed".into(),
+                message: e.clone(),
                 details: e,
             });
         }

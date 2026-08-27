@@ -121,7 +121,7 @@ pub fn burn(
             message: msg,
             details,
         });
-        Err("Burn failed".into())
+        Ok(())
     }
 }
 
