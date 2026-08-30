@@ -6,9 +6,20 @@ use std::{
     process::Command,
     time::{SystemTime, UNIX_EPOCH},
 };
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use tauri::Manager;
 
 const CD_SECTOR_BYTES: u64 = 2352;
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+fn hidden_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,27 +43,18 @@ fn push_tool_candidate(candidates: &mut Vec<PathBuf>, base: &Path, exe_name: &st
 fn tool_candidates(app: &tauri::AppHandle, name: &str) -> Vec<PathBuf> {
     let exe_name = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
     let mut candidates = Vec::new();
-
-    // Packaged resources and executable-relative portable layouts.
     if let Ok(resource_dir) = app.path().resource_dir() { push_tool_candidate(&mut candidates, &resource_dir, &exe_name); }
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             push_tool_candidate(&mut candidates, dir, &exe_name);
-            // `tauri dev` runs the executable from src-tauri/target/debug.
-            // Walk ancestors so repo-root tools/bin is found without relying on CWD.
             for ancestor in dir.ancestors().take(6) { push_tool_candidate(&mut candidates, ancestor, &exe_name); }
         }
     }
-
-    // Development fallbacks: cargo commonly starts in src-tauri while npm starts at repo root.
     if let Ok(cwd) = std::env::current_dir() {
         push_tool_candidate(&mut candidates, &cwd, &exe_name);
         if let Some(parent) = cwd.parent() { push_tool_candidate(&mut candidates, parent, &exe_name); }
     }
-
-    candidates.sort();
-    candidates.dedup();
-    candidates
+    candidates.sort(); candidates.dedup(); candidates
 }
 
 fn resolve_tool(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
@@ -71,7 +73,7 @@ fn parse_duration(stdout: &[u8]) -> Result<f64, String> {
 
 pub fn probe_audio(app: &tauri::AppHandle, source_path: &str) -> Result<AudioMetadata, String> {
     let ffprobe = resolve_tool(app, "ffprobe")?;
-    let output = Command::new(ffprobe).args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source_path]).output().map_err(|error| format!("Could not start ffprobe: {error}"))?;
+    let output = hidden_command(ffprobe).args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", source_path]).output().map_err(|error| format!("Could not start ffprobe: {error}"))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         return Err(if stderr.is_empty() { "ffprobe could not inspect this audio file".to_string() } else { format!("ffprobe could not inspect this audio file: {stderr}") });
@@ -107,7 +109,7 @@ pub fn prepare_audio(app: &tauri::AppHandle, source_paths: &[String]) -> Result<
         for (index, source_path) in source_paths.iter().enumerate() {
             let metadata = probe_audio(app, source_path)?;
             let pcm_path = session_dir.join(format!("track-{:02}.pcm", index + 1));
-            let output = Command::new(&ffmpeg).args(["-v", "error", "-y", "-i", source_path, "-vn", "-ar", "44100", "-ac", "2", "-f", "s16le"]).arg(&pcm_path).output().map_err(|error| format!("Could not start FFmpeg: {error}"))?;
+            let output = hidden_command(&ffmpeg).args(["-v", "error", "-y", "-i", source_path, "-vn", "-ar", "44100", "-ac", "2", "-f", "s16le"]).arg(&pcm_path).output().map_err(|error| format!("Could not start FFmpeg: {error}"))?;
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
                 return Err(if stderr.is_empty() { format!("FFmpeg could not prepare track {}", index + 1) } else { format!("FFmpeg could not prepare track {}: {stderr}", index + 1) });
