@@ -1,6 +1,8 @@
 mod audio;
+mod burner;
 
 use audio::{cleanup_prepared_tracks, prepare_audio, probe_audio, AudioMetadata, PreparedTrack};
+use burner::{burn_pcm_tracks, BurnResult};
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -18,6 +20,11 @@ fn cleanup_audio_tracks(paths: Vec<String>) -> Result<(), String> {
     cleanup_prepared_tracks(&paths)
 }
 
+#[tauri::command]
+fn burn_audio_cd(app: AppHandle, paths: Vec<String>) -> Result<BurnResult, String> {
+    burn_pcm_tracks(&app, &paths)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -25,7 +32,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             probe_audio_file,
             prepare_audio_tracks,
-            cleanup_audio_tracks
+            cleanup_audio_tracks,
+            burn_audio_cd
         ])
         .run(tauri::generate_context!())
         .expect("error while running Burnt");
