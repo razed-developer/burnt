@@ -9,6 +9,7 @@ import { TrackList } from "./components/TrackList";
 import { useTracks } from "./hooks/useTracks";
 import { chooseAudioFiles } from "./services/audioFiles";
 import { cleanupPreparedTracks, prepareAudioTracks } from "./services/audioPreparation";
+import { burnAudioCd } from "./services/burner";
 import { demoTracks, simulatedDisc } from "./services/simulation";
 
 const isTauri = "__TAURI_INTERNALS__" in window;
@@ -16,35 +17,37 @@ const isTauri = "__TAURI_INTERNALS__" in window;
 export default function App() {
   const [title, setTitle] = useState("");
   const [burning, setBurning] = useState(false);
-  const [preparationMessage, setPreparationMessage] = useState<string | null>(null);
-  const { tracks, totalSeconds, addTracks, removeTrack, moveTrack, reorderTrack } = useTracks(
-    isTauri ? [] : demoTracks(),
-  );
+  const [burnMessage, setBurnMessage] = useState<string | null>(null);
+  const { tracks, totalSeconds, addTracks, removeTrack, moveTrack, reorderTrack } = useTracks(isTauri ? [] : demoTracks());
 
   async function addMusic() {
-    if (!isTauri) {
-      addTracks(demoTracks().slice(0, 1));
-      return;
-    }
+    if (!isTauri) { addTracks(demoTracks().slice(0, 1)); return; }
     addTracks(await chooseAudioFiles());
   }
 
-  async function prepareBurn() {
+  async function burnDisc() {
     if (!isTauri) {
       setBurning(true);
+      setBurnMessage("Browser preview: simulated burn complete.");
       window.setTimeout(() => setBurning(false), 2200);
       return;
     }
 
     setBurning(true);
-    setPreparationMessage("Preparing audio…");
+    setBurnMessage("Preparing audio…");
+    let pcmPaths: string[] = [];
     try {
       const prepared = await prepareAudioTracks(tracks.map((track) => track.path));
-      setPreparationMessage(`${prepared.length} ${prepared.length === 1 ? "track" : "tracks"} prepared for Audio CD.`);
-      await cleanupPreparedTracks(prepared.map((track) => track.pcmPath));
+      pcmPaths = prepared.map((track) => track.pcmPath);
+      setBurnMessage(`${prepared.length} ${prepared.length === 1 ? "track" : "tracks"} prepared. Writing Audio CD…`);
+      const result = await burnAudioCd(pcmPaths);
+      setBurnMessage(result.drive ? `${result.message} — ${result.drive}` : result.message);
     } catch (error) {
-      setPreparationMessage(error instanceof Error ? error.message : String(error));
+      setBurnMessage(error instanceof Error ? error.message : String(error));
     } finally {
+      if (pcmPaths.length) {
+        try { await cleanupPreparedTracks(pcmPaths); } catch { /* keep primary burn result visible */ }
+      }
       setBurning(false);
     }
   }
@@ -64,8 +67,8 @@ export default function App() {
         <TrackList tracks={tracks} onRemove={removeTrack} onMove={moveTrack} onReorder={reorderTrack} />
         <CapacityMeter usedSeconds={totalSeconds} />
         <DiscStatusBar status={simulatedDisc} />
-        <BurnButton disabled={!tracks.length || overCapacity || hasAudioError || burning} burning={burning} onClick={prepareBurn} />
-        {preparationMessage && <p className="preparation-note">{preparationMessage}</p>}
+        <BurnButton disabled={!tracks.length || overCapacity || hasAudioError || burning} burning={burning} onClick={burnDisc} />
+        {burnMessage && <p className="preparation-note">{burnMessage}</p>}
         {!isTauri && <p className="simulation-note">Browser preview uses sample tracks and simulated disc status.</p>}
       </section>
     </main>
