@@ -6,6 +6,7 @@ use std::{
     process::Command,
     time::{SystemTime, UNIX_EPOCH},
 };
+use tauri::Manager;
 
 const CD_SECTOR_BYTES: u64 = 2352;
 
