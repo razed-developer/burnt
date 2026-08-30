@@ -5,7 +5,19 @@ use std::{
     process::{Command, Stdio},
     thread,
 };
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use tauri::{Emitter, Manager};
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+fn hidden_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +40,7 @@ fn resolve_burner(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 pub fn inspect_disc(app: &tauri::AppHandle) -> Result<DiscInfo, String> {
     if !cfg!(windows) { return Ok(DiscInfo { state: "missing".into(), label: "Windows burner backend unavailable".into(), drive: None, free_sectors: None }); }
-    let output = Command::new(resolve_burner(app)?).arg("status").output().map_err(|error| format!("Could not inspect the optical drive: {error}"))?;
+    let output = hidden_command(resolve_burner(app)?).arg("status").output().map_err(|error| format!("Could not inspect the optical drive: {error}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout); let stderr = String::from_utf8_lossy(&output.stderr);
     let mut drive = None; let mut free_sectors = None; let mut state = None; let mut label = None; let mut error = None;
     for line in stdout.lines().chain(stderr.lines()) { let line = line.trim(); if let Some(value) = line.strip_prefix("DRIVE|") { drive = Some(value.trim().to_string()); } else if let Some(value) = line.strip_prefix("SECTORS|") { free_sectors = value.trim().parse::<u64>().ok(); } else if let Some(value) = line.strip_prefix("DISC|") { let mut parts = value.splitn(2, '|'); state = parts.next().map(str::to_string); label = parts.next().map(str::to_string); } else if let Some(value) = line.strip_prefix("ERROR|") { error = Some(value.trim().to_string()); } }
@@ -45,7 +57,7 @@ pub fn burn_pcm_tracks(app: &tauri::AppHandle, pcm_paths: &[String]) -> Result<B
     if !cfg!(windows) { return Err("The physical burner backend is currently Windows-only.".to_string()); }
     if pcm_paths.is_empty() { return Err("No prepared tracks were supplied to the burner.".to_string()); }
 
-    let mut child = Command::new(resolve_burner(app)?)
+    let mut child = hidden_command(resolve_burner(app)?)
         .arg("burn").args(pcm_paths)
         .stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|error| format!("Could not start the Burnt burner helper: {error}"))?;
