@@ -5,3 +5,6 @@ target/
 *.log
 src-tauri/gen/
 tools/bin/
+
+# Local release artifacts
+release/
