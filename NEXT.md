@@ -2,11 +2,13 @@
 
 ## Current phase — Foundation and UI shell
 
-- [REQUIRED] Scaffold Tauri v2 + React + Vite + TypeScript on `fresh-start`.
-- [REQUIRED] Keep the project compartmentalized from the beginning; avoid oversized `App.tsx`/`main.rs` files.
-- [REQUIRED] Build the one-screen track-list UI: optional title, add music, reorder, remove, per-track duration, total duration, capacity meter, disc status, Burn CD button.
-- [REQUIRED] Make browser/dev-mode simulation possible so most UI work does not consume blank discs.
-- [REQUIRED] Establish portable-safe resource/tool paths.
+- [DONE] Scaffold Tauri v2 + React + Vite + TypeScript on `fresh-start`.
+- [DONE] Keep the project compartmentalized from the beginning; avoid oversized `App.tsx`/`main.rs` files.
+- [DONE] Build the one-screen track-list UI: optional title, add music, reorder, remove, per-track duration placeholder, total duration, capacity meter, disc status, Burn CD button.
+- [DONE] Make browser/dev-mode simulation possible so most UI work does not consume blank discs.
+- [DONE] Establish portable-safe resource/tool layout and document executable-relative/resource path requirement.
+- [REQUIRED] Local Windows verification: `npm install`, `npm run build`, and `npm run tauri dev`.
+- [REQUIRED] Review/iterate on the first UI before connecting hardware behavior.
 
 ## Next phase — Audio preparation
 
