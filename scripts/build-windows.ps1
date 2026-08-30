@@ -5,15 +5,40 @@ Set-Location $root
 
 Write-Host '== Burnt Windows release build ==' -ForegroundColor Cyan
 
-$required = @(
-  'tools/bin/ffmpeg.exe',
-  'tools/bin/ffprobe.exe'
-)
+$required = @('tools/bin/ffmpeg.exe', 'tools/bin/ffprobe.exe')
 foreach ($path in $required) {
   if (-not (Test-Path $path)) { throw "Missing required bundled tool: $path" }
 }
 
+function Import-MsvcEnvironment {
+  if (Get-Command cl.exe -ErrorAction SilentlyContinue) { return }
+
+  $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+  if (-not (Test-Path $vswhere)) {
+    throw 'MSVC cl.exe is not on PATH and vswhere.exe was not found. Install Visual Studio Build Tools with Desktop development with C++.'
+  }
+
+  $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+  if (-not $installation) {
+    throw 'Visual Studio C++ build tools were not found. Install the Desktop development with C++ workload.'
+  }
+
+  $devCmd = Join-Path $installation 'Common7/Tools/VsDevCmd.bat'
+  if (-not (Test-Path $devCmd)) { throw "VsDevCmd.bat was not found under $installation" }
+
+  Write-Host '      Loading Visual Studio C++ build environment...'
+  $environment = cmd.exe /s /c "`"$devCmd`" -no_logo -arch=x64 -host_arch=x64 && set"
+  if ($LASTEXITCODE -ne 0) { throw 'Could not initialize the Visual Studio C++ build environment.' }
+
+  foreach ($line in $environment) {
+    if ($line -match '^([^=]+)=(.*)$') { Set-Item -Path "Env:$($matches[1])" -Value $matches[2] }
+  }
+
+  if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw 'Visual Studio environment loaded, but cl.exe is still unavailable.' }
+}
+
 Write-Host '[1/4] Building native Audio CD helper...'
+Import-MsvcEnvironment
 & "$root/native/windows/burnt-burner/build.bat"
 if ($LASTEXITCODE -ne 0) { throw 'Native burner helper build failed.' }
 if (-not (Test-Path 'tools/bin/burnt-burner.exe')) { throw 'burnt-burner.exe was not produced in tools/bin.' }
