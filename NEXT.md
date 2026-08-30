@@ -1,56 +1,63 @@
 # NEXT
 
-## Foundation and UI shell
-- [DONE] Scaffold Tauri v2 + React + Vite + TypeScript on `fresh-start`.
-- [DONE] Build and locally verify the first one-screen track-list UI.
-- [DONE] Keep browser simulation available for UI work without consuming discs.
+## Burnt 1.0 — Windows release candidate
 
-## Audio preparation
-- [DONE] Integrate ffprobe for real duration.
-- [DONE] Convert supported sources with FFmpeg to raw 44.1 kHz / 16-bit / stereo PCM.
-- [DONE] Pad PCM to complete 2352-byte CD-DA sectors.
-- [DONE] Manage per-run temporary files and cleanup.
-- [DONE] Locally verify real files reach `tracks prepared to burn`.
+The Windows v1 application is feature-complete and locally verified.
 
-## Windows burner — v1 workflow frozen
-- [DONE] Native IMAPI2/file-backed-IStream burn helper.
-- [DONE] Local MSVC build script to `tools/bin/burnt-burner.exe`.
-- [DONE] Tauri integration, ordered PCM handoff, cleanup, media validation, finalization and eject.
-- [DONE] COM lifetime ordering fix.
-- [DONE] Full integrated burn and playback on computer plus separate standalone CD player.
-- [DONE] Live recorder/media detection and blank-disc gating.
-- [DONE] Live helper status and track-number events.
-- [DONE] Blocking ffprobe/FFmpeg/helper work moved off the Tauri command/UI execution path.
-- [DONE] Preparation, writing, finalizing, success, visible failure and completion states.
-- [DONE] `Burn Another` reset.
-- [DONE] Isolated IMAPI2 Track-at-Once progress subscription for within-track percentage.
-- [DONE] Active phase, track number, source track name and within-track progress bar.
-- [DONE] Final development physical burn verified the complete workflow.
+### Core workflow
+- [DONE] Tauri v2 + React + Vite + TypeScript desktop application.
+- [DONE] Add, inspect, reorder and remove source audio.
+- [DONE] Real duration probing with bundled ffprobe.
+- [DONE] FFmpeg conversion to raw 44.1 kHz / 16-bit / stereo PCM.
+- [DONE] CD-DA sector padding and temporary-file cleanup.
+- [DONE] Native Windows IMAPI2 Track-at-Once burner helper.
+- [DONE] Automatic recorder/media detection and blank-disc gating.
+- [DONE] Disc swaps detected while the application remains open.
+- [DONE] Track-by-track burn feedback.
+- [DONE] Finalization, eject, visible success/failure states and Burn Another reset.
+- [DONE] Blocking media work kept off the UI execution path.
 
-**Regression rule:** The Windows v1 burn workflow is frozen and hardware verified. Do not rewrite, refactor, or replace the native burn mechanism for polish. Changes affecting physical burning require a new hardware burn verification.
+### Verification
+- [DONE] Full development burn and playback on computer.
+- [DONE] Resulting disc played on a separate standalone CD player.
+- [DONE] No-disc, used-disc and blank-writable-disc detection.
+- [DONE] Live helper event streaming during a physical burn.
+- [DONE] Portable Windows build launches without unwanted console windows.
+- [DONE] Portable resource discovery for FFmpeg/ffprobe/native helper.
+- [DONE] NSIS installed build launches without unwanted console windows.
+- [DONE] NSIS resource discovery for FFmpeg/ffprobe/native helper.
+- [DONE] Installed build audio probing and disc detection.
+- [DONE] Disc swapping refreshes automatically without leaving the drive locked.
 
-## Current phase — Windows packaging
-- [DONE] Configure Tauri to produce an NSIS Windows installer and use the application icon set.
-- [DONE] Add `scripts/build-windows.ps1` to build the native helper, Tauri release, installer, and a self-contained portable folder.
-- [REQUIRED] Run the release script locally and fix any packaging/build issues.
-- [REQUIRED] Launch `release/Burnt-portable/Burnt.exe` directly and verify the updated application/taskbar icon.
-- [REQUIRED] Verify portable build finds bundled FFmpeg/ffprobe by adding real audio files.
-- [REQUIRED] Verify portable build finds bundled `burnt-burner.exe` and detects optical-disc states.
-- [REQUIRED] Perform one final physical burn from the portable build to prove no development tools or PATH dependencies are required.
-- [REQUIRED] Verify the resulting disc plays normally.
-- [REQUIRED] Install the generated NSIS package and smoke-test launch, icon, audio probing and disc detection.
+### Release polish
+- [DONE] Windows application icon set.
+- [DONE] Dark toasted visual theme.
+- [DONE] Burnt-toast in-app logo asset support.
+- [DONE] Compact default window and empty-state layout.
+- [DONE] Remove unreliable within-track percentage bar while retaining truthful track-level status.
+- [DONE] Set release version to 1.0.0.
+- [DONE] Replace development README with release documentation.
 
-## Release polish after packaged-build verification
-- [WANTED] Add a small diagnostics view if troubleshooting information is still useful.
-- [WANTED] Final copy/layout polish only; do not change the burn engine.
-- [WANTED] Set the v1 release version once packaging is proven.
+**Regression rule:** The Windows 1.0 burn workflow is frozen and hardware verified. Do not rewrite, refactor, or replace the native burn mechanism for polish. Changes affecting physical burning require a new hardware burn verification.
 
-## Later
+## Final local release build
+
+Run:
+
+```powershell
+npm install
+.\scripts\build-windows.ps1
+```
+
+Then retain the generated Windows installer and portable build as the 1.0.0 release artifacts.
+
+## Post-1.0 ideas
 - [IDEA] Save Project / Burn Another Copy.
 - [IDEA] Linux burning backend.
-- [IDEA] CD-Text/track-name support. Current `.cda` tracks and lack of embedded source metadata are expected for v1. Do not let CD-Text destabilize v1.
+- [IDEA] CD-Text/track-name support. Current `.cda` tracks and lack of embedded source metadata are expected for v1.
 
 ## Established test results
+
 2026-08-30: `reference/imapi-v3` successfully burned two tracks with Windows IMAPI2 on MATSHITA DVD+-RW UJ8A2 1.02. The finalized disc played correctly.
 
 2026-08-30: Full Burnt pipeline prepared source audio, invoked the native helper, burned/finalized/ejected a standard Audio CD, and played successfully both on the computer and on a separate standalone CD player.
@@ -59,4 +66,4 @@
 
 2026-08-30: Live helper event streaming locally verified during a successful physical burn; Burnt displayed which track it was writing while the burn proceeded.
 
-2026-08-30: Final development burn verified within-track progress, current-track presentation, responsive operation, finalization/eject, completion state and the complete Windows v1 workflow. Windows burn behavior is now frozen for v1.
+2026-08-30: Windows portable and NSIS installed builds verified for clean launch and bundled-tool/helper discovery. Disc swapping and drive release behavior work as expected.
