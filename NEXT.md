@@ -12,48 +12,38 @@
 - [DONE] Manage per-run temporary files and cleanup.
 - [DONE] Locally verify real files reach `tracks prepared to burn`.
 
-## Windows burner — hardware verified
+## Windows burner — v1 workflow frozen
 - [DONE] Native IMAPI2/file-backed-IStream burn helper.
 - [DONE] Local MSVC build script to `tools/bin/burnt-burner.exe`.
 - [DONE] Tauri integration, ordered PCM handoff, cleanup, media validation, finalization and eject.
 - [DONE] COM lifetime ordering fix.
 - [DONE] Full integrated burn and playback on computer plus separate standalone CD player.
+- [DONE] Live recorder/media detection and blank-disc gating.
+- [DONE] Live helper status and track-number events.
+- [DONE] Blocking ffprobe/FFmpeg/helper work moved off the Tauri command/UI execution path.
+- [DONE] Preparation, writing, finalizing, success, visible failure and completion states.
+- [DONE] `Burn Another` reset.
+- [DONE] Isolated IMAPI2 Track-at-Once progress subscription for within-track percentage.
+- [DONE] Active phase, track number, source track name and within-track progress bar.
+- [DONE] Final development physical burn verified the complete workflow.
 
-**Regression rule:** The current native Windows burn path is known-good. Do not rewrite, refactor, or replace it casually. Changes to native burn behavior must be narrow and hardware verified.
+**Regression rule:** The Windows v1 burn workflow is frozen and hardware verified. Do not rewrite, refactor, or replace the native burn mechanism for polish. Changes affecting physical burning require a new hardware burn verification.
 
-## Application integration and feedback
-- [DONE] Replace simulated disc status with live recorder/media detection.
-- [DONE] Locally verify empty tray, previously burned disc, and blank writable disc states.
-- [DONE] Gate Burn CD on a real blank writable disc.
-- [DONE] Stream helper status/track events live to React.
-- [DONE] Locally verify live track-number feedback during a successful physical burn.
-- [DONE] Move blocking ffprobe/FFmpeg/helper work off Tauri's command/UI execution path.
-- [DONE] Add preparation, writing, finalizing, success, and visible failure states.
-- [DONE] Add completion screen and `Burn Another` reset.
-- [READY TO VERIFY] Add isolated IMAPI2 Track-at-Once progress subscription for within-track percentage. Microsoft documents DDiscFormat2TrackAtOnceEvents as the supported progress mechanism for AddAudioTrack; the proven AddAudioTrack/file-stream path itself is unchanged.
-- [READY TO VERIFY] Show active phase, track number, source track name, and within-track progress bar.
+## Current phase — Windows packaging
+- [DONE] Configure Tauri to produce an NSIS Windows installer and use the application icon set.
+- [DONE] Add `scripts/build-windows.ps1` to build the native helper, Tauri release, installer, and a self-contained portable folder.
+- [REQUIRED] Run the release script locally and fix any packaging/build issues.
+- [REQUIRED] Launch `release/Burnt-portable/Burnt.exe` directly and verify the updated application/taskbar icon.
+- [REQUIRED] Verify portable build finds bundled FFmpeg/ffprobe by adding real audio files.
+- [REQUIRED] Verify portable build finds bundled `burnt-burner.exe` and detects optical-disc states.
+- [REQUIRED] Perform one final physical burn from the portable build to prove no development tools or PATH dependencies are required.
+- [REQUIRED] Verify the resulting disc plays normally.
+- [REQUIRED] Install the generated NSIS package and smoke-test launch, icon, audio probing and disc detection.
 
-## Next physical burn — final development workflow check
-Use one blank CD-R to verify together:
-1. Blank disc is detected and enables Burn CD.
-2. UI remains responsive during preparation and writing (no Windows `Not Responding`).
-3. Active burn panel shows preparation/start/track/finalization phases.
-4. Current track name and `Track N of N` are correct.
-5. IMAPI progress percentage advances while a track is being written.
-6. Disc finalizes and ejects.
-7. Completion screen appears.
-8. Finished disc plays in a standalone CD player.
-9. `Burn Another` clears title/tracks/result and returns to blank-disc detection.
-
-If this passes, freeze the Windows burn workflow and proceed to packaging. Do not spend another disc on feature work unless a later change affects physical burning.
-
-## Packaging and polish
-- [REQUIRED] Produce a Windows portable build with FFmpeg, ffprobe, and burnt-burner bundled.
-- [REQUIRED] Verify portable build can burn without development tools or PATH dependencies.
-- [REQUIRED] Verify application/taskbar icon in packaged build; dev-mode blank icon may not represent packaged behavior.
-- [WANTED] Windows installer after portable operation is proven.
-- [WANTED] Application icon and final visual polish.
-- [WANTED] Diagnostics view for troubleshooting without cluttering normal workflow.
+## Release polish after packaged-build verification
+- [WANTED] Add a small diagnostics view if troubleshooting information is still useful.
+- [WANTED] Final copy/layout polish only; do not change the burn engine.
+- [WANTED] Set the v1 release version once packaging is proven.
 
 ## Later
 - [IDEA] Save Project / Burn Another Copy.
@@ -68,3 +58,5 @@ If this passes, freeze the Windows burn workflow and proceed to packaging. Do no
 2026-08-30: Live disc detection locally verified for no disc, previously burned/nonblank disc, and blank writable disc.
 
 2026-08-30: Live helper event streaming locally verified during a successful physical burn; Burnt displayed which track it was writing while the burn proceeded.
+
+2026-08-30: Final development burn verified within-track progress, current-track presentation, responsive operation, finalization/eject, completion state and the complete Windows v1 workflow. Windows burn behavior is now frozen for v1.
