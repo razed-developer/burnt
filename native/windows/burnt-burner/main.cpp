@@ -14,141 +14,65 @@
 
 using Microsoft::WRL::ComPtr;
 
-static void emit(const wchar_t* type, const std::wstring& message) {
-    std::wcout << type << L"|" << message << L"\n";
-    std::wcout.flush();
-}
-
+static void emit(const wchar_t* type, const std::wstring& message) { std::wcout << type << L"|" << message << L"\n"; std::wcout.flush(); }
 static std::wstring hr_text(HRESULT hr) {
-    wchar_t* msg = nullptr;
-    FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                   nullptr, hr, 0, (LPWSTR)&msg, 0, nullptr);
-    wchar_t hex[16]{};
-    swprintf_s(hex, L"%08lX", static_cast<unsigned long>(hr));
-    std::wstring out = L"HRESULT 0x" + std::wstring(hex);
-    if (msg) { out += L" - "; out += msg; LocalFree(msg); }
-    while (!out.empty() && (out.back() == L'\r' || out.back() == L'\n')) out.pop_back();
-    return out;
+    wchar_t* msg = nullptr; FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, hr, 0, (LPWSTR)&msg, 0, nullptr);
+    wchar_t hex[16]{}; swprintf_s(hex, L"%08lX", static_cast<unsigned long>(hr)); std::wstring out = L"HRESULT 0x" + std::wstring(hex);
+    if (msg) { out += L" - "; out += msg; LocalFree(msg); } while (!out.empty() && (out.back() == L'\r' || out.back() == L'\n')) out.pop_back(); return out;
 }
-
 static std::wstring bstr_to_w(BSTR b) { return b ? std::wstring(b, SysStringLen(b)) : L""; }
-
 static HRESULT stream_from_file(const std::wstring& path, ComPtr<IStream>& out) {
-    IStream* raw = nullptr;
-    HRESULT hr = SHCreateStreamOnFileEx(path.c_str(), STGM_READ | STGM_SHARE_DENY_WRITE,
-        FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &raw);
-    if (FAILED(hr)) return hr;
-    out.Attach(raw);
-    LARGE_INTEGER zero{}; ULARGE_INTEGER pos{};
-    hr = out->Seek(zero, STREAM_SEEK_SET, &pos);
-    if (FAILED(hr)) return hr;
-    return pos.QuadPart == 0 ? S_OK : E_FAIL;
+    IStream* raw = nullptr; HRESULT hr = SHCreateStreamOnFileEx(path.c_str(), STGM_READ | STGM_SHARE_DENY_WRITE, FILE_ATTRIBUTE_NORMAL, FALSE, nullptr, &raw); if (FAILED(hr)) return hr;
+    out.Attach(raw); LARGE_INTEGER zero{}; ULARGE_INTEGER pos{}; hr = out->Seek(zero, STREAM_SEEK_SET, &pos); if (FAILED(hr)) return hr; return pos.QuadPart == 0 ? S_OK : E_FAIL;
 }
-
 static int fail(const std::wstring& message) { emit(L"ERROR", message); return 1; }
 
+static HRESULT first_recorder(ComPtr<IDiscRecorder2>& recorder, std::wstring& drive_name) {
+    ComPtr<IDiscMaster2> master; HRESULT hr = CoCreateInstance(__uuidof(MsftDiscMaster2), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&master)); if (FAILED(hr)) return hr;
+    LONG count = 0; hr = master->get_Count(&count); if (FAILED(hr)) return hr; if (count < 1) return HRESULT_FROM_WIN32(ERROR_NOT_FOUND);
+    BSTR uid = nullptr; hr = master->get_Item(0, &uid); if (FAILED(hr)) return hr;
+    hr = CoCreateInstance(__uuidof(MsftDiscRecorder2), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&recorder)); if (SUCCEEDED(hr)) hr = recorder->InitializeDiscRecorder(uid); SysFreeString(uid); if (FAILED(hr)) return hr;
+    BSTR vendor = nullptr, product = nullptr, rev = nullptr; recorder->get_VendorId(&vendor); recorder->get_ProductId(&product); recorder->get_ProductRevision(&rev);
+    drive_name = bstr_to_w(vendor) + L" " + bstr_to_w(product) + L" " + bstr_to_w(rev); SysFreeString(vendor); SysFreeString(product); SysFreeString(rev); return S_OK;
+}
+
+static int status_com() {
+    ComPtr<IDiscRecorder2> recorder; std::wstring drive_name; HRESULT hr = first_recorder(recorder, drive_name);
+    if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) { emit(L"DISC", L"missing|No optical recorder found"); return 0; }
+    if (FAILED(hr)) return fail(L"Could not inspect optical recorder: " + hr_text(hr)); emit(L"DRIVE", drive_name);
+    ComPtr<IDiscFormat2TrackAtOnce> tao; hr = CoCreateInstance(__uuidof(MsftDiscFormat2TrackAtOnce), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&tao)); if (FAILED(hr)) return fail(L"Could not create IMAPI2 Track-at-Once writer: " + hr_text(hr));
+    VARIANT_BOOL supported = VARIANT_FALSE; hr = tao->IsRecorderSupported(recorder.Get(), &supported); if (FAILED(hr) || supported != VARIANT_TRUE) { emit(L"DISC", L"unsupported|Recorder does not support Audio CD burning"); return 0; }
+    hr = tao->put_Recorder(recorder.Get()); if (FAILED(hr)) return fail(L"Could not select optical recorder: " + hr_text(hr));
+    VARIANT_BOOL media_supported = VARIANT_FALSE; hr = tao->IsCurrentMediaSupported(recorder.Get(), &media_supported); if (FAILED(hr) || media_supported != VARIANT_TRUE) { emit(L"DISC", L"missing|Insert a blank writable CD"); return 0; }
+    VARIANT_BOOL blank = VARIANT_FALSE; hr = tao->get_MediaPhysicallyBlank(&blank); if (FAILED(hr)) { emit(L"DISC", L"missing|Insert a blank writable CD"); return 0; }
+    if (blank != VARIANT_TRUE) { emit(L"DISC", L"used|Disc is not blank"); return 0; }
+    LONG free_sectors = 0; if (SUCCEEDED(tao->get_FreeSectorsOnMedia(&free_sectors))) emit(L"SECTORS", std::to_wstring(free_sectors));
+    emit(L"DISC", L"ready|Blank writable CD ready"); return 0;
+}
+static int status() { HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); if (FAILED(hr)) return fail(L"Could not initialize Windows COM: " + hr_text(hr)); int result = status_com(); CoUninitialize(); return result; }
+
 static int burn_com(const std::vector<std::wstring>& pcm_paths) {
-    ComPtr<IDiscMaster2> master;
-    HRESULT hr = CoCreateInstance(__uuidof(MsftDiscMaster2), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&master));
-    if (FAILED(hr)) return fail(L"Could not create IMAPI2 disc master: " + hr_text(hr));
-
-    LONG count = 0;
-    hr = master->get_Count(&count);
-    if (FAILED(hr)) return fail(L"Could not enumerate optical recorders: " + hr_text(hr));
-    if (count < 1) return fail(L"No optical recorder was found.");
-
-    ComPtr<IDiscRecorder2> recorder;
-    BSTR uid = nullptr;
-    hr = master->get_Item(0, &uid);
-    if (FAILED(hr)) return fail(L"Could not get optical recorder: " + hr_text(hr));
-    hr = CoCreateInstance(__uuidof(MsftDiscRecorder2), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&recorder));
-    if (SUCCEEDED(hr)) hr = recorder->InitializeDiscRecorder(uid);
-    SysFreeString(uid);
-    if (FAILED(hr)) return fail(L"Could not initialize optical recorder: " + hr_text(hr));
-
-    BSTR vendor = nullptr, product = nullptr, rev = nullptr;
-    recorder->get_VendorId(&vendor); recorder->get_ProductId(&product); recorder->get_ProductRevision(&rev);
-    emit(L"DRIVE", bstr_to_w(vendor) + L" " + bstr_to_w(product) + L" " + bstr_to_w(rev));
-    SysFreeString(vendor); SysFreeString(product); SysFreeString(rev);
-
-    ComPtr<IDiscFormat2TrackAtOnce> tao;
-    hr = CoCreateInstance(__uuidof(MsftDiscFormat2TrackAtOnce), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&tao));
-    if (FAILED(hr)) return fail(L"Could not create IMAPI2 Track-at-Once writer: " + hr_text(hr));
-
-    VARIANT_BOOL supported = VARIANT_FALSE;
-    hr = tao->IsRecorderSupported(recorder.Get(), &supported);
-    if (FAILED(hr) || supported != VARIANT_TRUE) return fail(L"Selected recorder does not support IMAPI2 Audio CD Track-at-Once.");
-    hr = tao->put_Recorder(recorder.Get());
-    if (FAILED(hr)) return fail(L"Could not select optical recorder: " + hr_text(hr));
-    BSTR client = SysAllocString(L"Burnt");
-    hr = client ? tao->put_ClientName(client) : E_OUTOFMEMORY;
-    if (client) SysFreeString(client);
-    if (FAILED(hr)) return fail(L"Could not configure Burnt as IMAPI client: " + hr_text(hr));
-
-    VARIANT_BOOL media_supported = VARIANT_FALSE;
-    hr = tao->IsCurrentMediaSupported(recorder.Get(), &media_supported);
-    if (FAILED(hr) || media_supported != VARIANT_TRUE) return fail(L"Insert a supported blank writable CD-R or CD-RW.");
-    VARIANT_BOOL blank = VARIANT_FALSE;
-    hr = tao->get_MediaPhysicallyBlank(&blank);
-    if (FAILED(hr) || blank != VARIANT_TRUE) return fail(L"The inserted disc is not physically blank.");
-
-    LONG free_sectors = 0;
-    if (SUCCEEDED(tao->get_FreeSectorsOnMedia(&free_sectors))) {
-        unsigned long long needed = 0;
-        for (const auto& path : pcm_paths) {
-            std::error_code ec;
-            auto bytes = std::filesystem::file_size(path, ec);
-            if (ec || bytes == 0 || bytes % 2352 != 0) return fail(L"Prepared PCM is missing or not CD-sector aligned: " + path);
-            needed += bytes / 2352;
-        }
-        needed += pcm_paths.size() > 1 ? (pcm_paths.size() - 1) * 150ULL : 0ULL;
-        if (needed > static_cast<unsigned long long>(free_sectors)) return fail(L"The prepared tracks do not fit on the inserted disc.");
+    ComPtr<IDiscRecorder2> recorder; std::wstring drive_name; HRESULT hr = first_recorder(recorder, drive_name);
+    if (hr == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) return fail(L"No optical recorder was found."); if (FAILED(hr)) return fail(L"Could not initialize optical recorder: " + hr_text(hr)); emit(L"DRIVE", drive_name);
+    ComPtr<IDiscFormat2TrackAtOnce> tao; hr = CoCreateInstance(__uuidof(MsftDiscFormat2TrackAtOnce), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&tao)); if (FAILED(hr)) return fail(L"Could not create IMAPI2 Track-at-Once writer: " + hr_text(hr));
+    VARIANT_BOOL supported = VARIANT_FALSE; hr = tao->IsRecorderSupported(recorder.Get(), &supported); if (FAILED(hr) || supported != VARIANT_TRUE) return fail(L"Selected recorder does not support IMAPI2 Audio CD Track-at-Once.");
+    hr = tao->put_Recorder(recorder.Get()); if (FAILED(hr)) return fail(L"Could not select optical recorder: " + hr_text(hr));
+    BSTR client = SysAllocString(L"Burnt"); hr = client ? tao->put_ClientName(client) : E_OUTOFMEMORY; if (client) SysFreeString(client); if (FAILED(hr)) return fail(L"Could not configure Burnt as IMAPI client: " + hr_text(hr));
+    VARIANT_BOOL media_supported = VARIANT_FALSE; hr = tao->IsCurrentMediaSupported(recorder.Get(), &media_supported); if (FAILED(hr) || media_supported != VARIANT_TRUE) return fail(L"Insert a supported blank writable CD-R or CD-RW.");
+    VARIANT_BOOL blank = VARIANT_FALSE; hr = tao->get_MediaPhysicallyBlank(&blank); if (FAILED(hr) || blank != VARIANT_TRUE) return fail(L"The inserted disc is not physically blank.");
+    LONG free_sectors = 0; if (SUCCEEDED(tao->get_FreeSectorsOnMedia(&free_sectors))) {
+        unsigned long long needed = 0; for (const auto& path : pcm_paths) { std::error_code ec; auto bytes = std::filesystem::file_size(path, ec); if (ec || bytes == 0 || bytes % 2352 != 0) return fail(L"Prepared PCM is missing or not CD-sector aligned: " + path); needed += bytes / 2352; }
+        needed += pcm_paths.size() > 1 ? (pcm_paths.size() - 1) * 150ULL : 0ULL; if (needed > static_cast<unsigned long long>(free_sectors)) return fail(L"The prepared tracks do not fit on the inserted disc.");
     }
-
-    emit(L"STATUS", L"Preparing media");
-    hr = tao->PrepareMedia();
-    if (FAILED(hr)) return fail(L"Could not prepare/lock the disc: " + hr_text(hr));
-
-    bool failed = false;
-    for (size_t i = 0; i < pcm_paths.size(); ++i) {
-        ComPtr<IStream> stream;
-        hr = stream_from_file(pcm_paths[i], stream);
-        if (FAILED(hr)) { emit(L"ERROR", L"Could not open prepared PCM track: " + hr_text(hr)); failed = true; break; }
-        emit(L"TRACK", std::to_wstring(i + 1) + L"/" + std::to_wstring(pcm_paths.size()));
-        hr = tao->AddAudioTrack(stream.Get());
-        if (FAILED(hr)) { emit(L"ERROR", L"Could not write track " + std::to_wstring(i + 1) + L": " + hr_text(hr)); failed = true; break; }
-    }
-
-    emit(L"STATUS", L"Finalizing disc");
-    HRESULT release_hr = tao->ReleaseMedia();
-    if (FAILED(release_hr)) { emit(L"ERROR", L"Could not finalize/release the disc: " + hr_text(release_hr)); failed = true; }
-    if (failed) return 1;
-
-    hr = recorder->EjectMedia();
-    if (FAILED(hr)) emit(L"WARN", L"Disc was written but could not be ejected: " + hr_text(hr));
-    emit(L"COMPLETE", L"Audio CD written successfully");
-    return 0;
+    emit(L"STATUS", L"Preparing media"); hr = tao->PrepareMedia(); if (FAILED(hr)) return fail(L"Could not prepare/lock the disc: " + hr_text(hr));
+    bool failed = false; for (size_t i = 0; i < pcm_paths.size(); ++i) { ComPtr<IStream> stream; hr = stream_from_file(pcm_paths[i], stream); if (FAILED(hr)) { emit(L"ERROR", L"Could not open prepared PCM track: " + hr_text(hr)); failed = true; break; } emit(L"TRACK", std::to_wstring(i + 1) + L"/" + std::to_wstring(pcm_paths.size())); hr = tao->AddAudioTrack(stream.Get()); if (FAILED(hr)) { emit(L"ERROR", L"Could not write track " + std::to_wstring(i + 1) + L": " + hr_text(hr)); failed = true; break; } }
+    emit(L"STATUS", L"Finalizing disc"); HRESULT release_hr = tao->ReleaseMedia(); if (FAILED(release_hr)) { emit(L"ERROR", L"Could not finalize/release the disc: " + hr_text(release_hr)); failed = true; } if (failed) return 1;
+    hr = recorder->EjectMedia(); if (FAILED(hr)) emit(L"WARN", L"Disc was written but could not be ejected: " + hr_text(hr)); emit(L"COMPLETE", L"Audio CD written successfully"); return 0;
 }
-
-static int burn(const std::vector<std::wstring>& pcm_paths) {
-    if (pcm_paths.empty()) return fail(L"No prepared PCM tracks were supplied.");
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    if (FAILED(hr)) return fail(L"Could not initialize Windows COM: " + hr_text(hr));
-
-    // All ComPtr objects are scoped inside burn_com and therefore released
-    // before CoUninitialize. Releasing COM interfaces after CoUninitialize can
-    // cause the 0xC0000005 access violation seen in the integrated helper.
-    int result = burn_com(pcm_paths);
-    CoUninitialize();
-    return result;
-}
+static int burn(const std::vector<std::wstring>& pcm_paths) { if (pcm_paths.empty()) return fail(L"No prepared PCM tracks were supplied."); HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); if (FAILED(hr)) return fail(L"Could not initialize Windows COM: " + hr_text(hr)); int result = burn_com(pcm_paths); CoUninitialize(); return result; }
 
 int wmain(int argc, wchar_t** argv) {
-    if (argc < 3 || std::wstring(argv[1]) != L"burn") {
-        std::wcerr << L"Usage: burnt-burner.exe burn <track-1.pcm> [track-2.pcm ...]\n";
-        return 2;
-    }
-    std::vector<std::wstring> paths;
-    for (int i = 2; i < argc; ++i) paths.emplace_back(argv[i]);
-    return burn(paths);
+    if (argc == 2 && std::wstring(argv[1]) == L"status") return status();
+    if (argc >= 3 && std::wstring(argv[1]) == L"burn") { std::vector<std::wstring> paths; for (int i = 2; i < argc; ++i) paths.emplace_back(argv[i]); return burn(paths); }
+    std::wcerr << L"Usage: burnt-burner.exe status | burn <track-1.pcm> [track-2.pcm ...]\n"; return 2;
 }
