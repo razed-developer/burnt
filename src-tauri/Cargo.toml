@@ -1,6 +1,6 @@
 [package]
 name = "burnt"
-version = "0.1.0"
+version = "1.0.0"
 description = "A deliberately simple Audio CD burner"
 authors = ["razed-developer"]
 edition = "2021"
