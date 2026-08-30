@@ -29,11 +29,13 @@ button:disabled { cursor: default; }
 .track-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #dedbd3; }
 .track-row { min-height: 68px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #dedbd3; background: #fffdf8; }
 .track-row:hover { background: #faf7ef; }
+.track-row.track-error { background: #fff5f1; }
 .drag-handle { color: #9b9e98; cursor: grab; flex: 0 0 auto; }
 .track-number { width: 28px; color: #727b74; font-variant-numeric: tabular-nums; }
 .track-copy { min-width: 0; display: grid; gap: 4px; flex: 1; }
 .track-copy strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
-.track-copy small { color: #737c75; font-variant-numeric: tabular-nums; }
+.track-copy small { color: #737c75; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 5px; }
+.track-error .track-copy small { color: #a73f2c; font-weight: 700; }
 .row-actions { display: flex; align-items: center; }
 .icon-button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; color: #5e6961; }
 .icon-button:hover:not(:disabled) { background: #eceae4; color: #1d2520; }
@@ -57,6 +59,7 @@ button:disabled { cursor: default; }
 .burn-button { width: 100%; margin-top: 22px; border: 0; background: #d85b36; color: #fff; min-height: 52px; display: flex; justify-content: center; align-items: center; gap: 9px; font-size: 16px; font-weight: 800; }
 .burn-button:hover:not(:disabled) { background: #bd4b2d; }
 .burn-button:disabled { opacity: .42; }
+.preparation-note { margin: 11px 0 0; text-align: center; font-size: 12px; color: #667068; white-space: pre-line; }
 .simulation-note { margin: 11px 0 0; text-align: center; font-size: 11px; color: #8b918c; }
 @media (max-width: 620px) {
   .app-shell { width: 100%; padding: 24px 14px; }
