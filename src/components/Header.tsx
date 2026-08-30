@@ -1,7 +1,11 @@
+import toastLogo from "../assets/burnt-toast.png";
+
 export function Header() {
   return (
     <header className="app-header">
-      <div className="brand-mark" aria-hidden="true"><span className="toast-icon" /></div>
+      <div className="brand-mark">
+        <img className="toast-logo" src={toastLogo} alt="" aria-hidden="true" />
+      </div>
       <div>
         <h1>Burnt</h1>
         <p>Make an audio CD.</p>
