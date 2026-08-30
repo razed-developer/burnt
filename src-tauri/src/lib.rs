@@ -6,15 +6,25 @@ use burner::{burn_pcm_tracks, inspect_disc, BurnResult, DiscInfo};
 use tauri::AppHandle;
 
 #[tauri::command]
-fn probe_audio_file(app: AppHandle, path: String) -> Result<AudioMetadata, String> { probe_audio(&app, &path) }
+async fn probe_audio_file(app: AppHandle, path: String) -> Result<AudioMetadata, String> {
+    tauri::async_runtime::spawn_blocking(move || probe_audio(&app, &path)).await.map_err(|e| format!("Audio probe task failed: {e}"))?
+}
 #[tauri::command]
-fn prepare_audio_tracks(app: AppHandle, paths: Vec<String>) -> Result<Vec<PreparedTrack>, String> { prepare_audio(&app, &paths) }
+async fn prepare_audio_tracks(app: AppHandle, paths: Vec<String>) -> Result<Vec<PreparedTrack>, String> {
+    tauri::async_runtime::spawn_blocking(move || prepare_audio(&app, &paths)).await.map_err(|e| format!("Audio preparation task failed: {e}"))?
+}
 #[tauri::command]
-fn cleanup_audio_tracks(paths: Vec<String>) -> Result<(), String> { cleanup_prepared_tracks(&paths) }
+async fn cleanup_audio_tracks(paths: Vec<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || cleanup_prepared_tracks(&paths)).await.map_err(|e| format!("Audio cleanup task failed: {e}"))?
+}
 #[tauri::command]
-fn get_disc_status(app: AppHandle) -> Result<DiscInfo, String> { inspect_disc(&app) }
+async fn get_disc_status(app: AppHandle) -> Result<DiscInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || inspect_disc(&app)).await.map_err(|e| format!("Disc status task failed: {e}"))?
+}
 #[tauri::command]
-fn burn_audio_cd(app: AppHandle, paths: Vec<String>) -> Result<BurnResult, String> { burn_pcm_tracks(&app, &paths) }
+async fn burn_audio_cd(app: AppHandle, paths: Vec<String>) -> Result<BurnResult, String> {
+    tauri::async_runtime::spawn_blocking(move || burn_pcm_tracks(&app, &paths)).await.map_err(|e| format!("Burner task failed: {e}"))?
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
