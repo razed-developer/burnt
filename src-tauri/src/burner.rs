@@ -1,11 +1,18 @@
 use serde::Serialize;
-use std::{path::{Path, PathBuf}, process::Command};
-use tauri::Manager;
+use std::{
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    thread,
+};
+use tauri::{Emitter, Manager};
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BurnEvent { pub kind: String, pub message: String }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BurnResult { pub drive: Option<String>, pub message: String, pub log: Vec<String> }
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscInfo { pub state: String, pub label: String, pub drive: Option<String>, pub free_sectors: Option<u64> }
@@ -29,10 +36,44 @@ pub fn inspect_disc(app: &tauri::AppHandle) -> Result<DiscInfo, String> {
     Ok(DiscInfo { state: state.unwrap_or_else(|| "missing".into()), label: label.unwrap_or_else(|| "Insert a blank writable CD".into()), drive, free_sectors })
 }
 
+fn parse_event_line(line: &str) -> Option<BurnEvent> {
+    let (kind, message) = line.trim().split_once('|')?;
+    Some(BurnEvent { kind: kind.to_lowercase(), message: message.trim().to_string() })
+}
+
 pub fn burn_pcm_tracks(app: &tauri::AppHandle, pcm_paths: &[String]) -> Result<BurnResult, String> {
-    if !cfg!(windows) { return Err("The physical burner backend is currently Windows-only.".to_string()); } if pcm_paths.is_empty() { return Err("No prepared tracks were supplied to the burner.".to_string()); }
-    let output = Command::new(resolve_burner(app)?).arg("burn").args(pcm_paths).output().map_err(|error| format!("Could not start the Burnt burner helper: {error}"))?;
-    let stdout = String::from_utf8_lossy(&output.stdout); let stderr = String::from_utf8_lossy(&output.stderr); let mut drive = None; let mut complete = None; let mut error = None; let mut log = Vec::new();
-    for line in stdout.lines().chain(stderr.lines()) { let line = line.trim(); if line.is_empty() { continue; } log.push(line.to_string()); if let Some(value) = line.strip_prefix("DRIVE|") { drive = Some(value.trim().to_string()); } if let Some(value) = line.strip_prefix("COMPLETE|") { complete = Some(value.trim().to_string()); } if let Some(value) = line.strip_prefix("ERROR|") { error = Some(value.trim().to_string()); } }
-    if output.status.success() { Ok(BurnResult { drive, message: complete.unwrap_or_else(|| "Audio CD written successfully".to_string()), log }) } else { Err(error.unwrap_or_else(|| format!("Burner helper exited with status {}", output.status))) }
+    if !cfg!(windows) { return Err("The physical burner backend is currently Windows-only.".to_string()); }
+    if pcm_paths.is_empty() { return Err("No prepared tracks were supplied to the burner.".to_string()); }
+
+    let mut child = Command::new(resolve_burner(app)?)
+        .arg("burn").args(pcm_paths)
+        .stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().map_err(|error| format!("Could not start the Burnt burner helper: {error}"))?;
+    let stdout = child.stdout.take().ok_or_else(|| "Could not read burner helper output.".to_string())?;
+    let stderr = child.stderr.take().ok_or_else(|| "Could not read burner helper errors.".to_string())?;
+
+    let app_for_stderr = app.clone();
+    let stderr_thread = thread::spawn(move || {
+        let mut lines = Vec::new();
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if let Some(event) = parse_event_line(&line) { let _ = app_for_stderr.emit("burn-event", event); }
+            if !line.trim().is_empty() { lines.push(line); }
+        }
+        lines
+    });
+
+    let mut drive = None; let mut complete = None; let mut error = None; let mut log = Vec::new();
+    for line in BufReader::new(stdout).lines() {
+        let line = line.map_err(|e| format!("Could not read burner progress: {e}"))?;
+        let trimmed = line.trim(); if trimmed.is_empty() { continue; }
+        log.push(trimmed.to_string());
+        if let Some(event) = parse_event_line(trimmed) { let _ = app.emit("burn-event", event); }
+        if let Some(value) = trimmed.strip_prefix("DRIVE|") { drive = Some(value.trim().to_string()); }
+        if let Some(value) = trimmed.strip_prefix("COMPLETE|") { complete = Some(value.trim().to_string()); }
+        if let Some(value) = trimmed.strip_prefix("ERROR|") { error = Some(value.trim().to_string()); }
+    }
+    let status = child.wait().map_err(|e| format!("Could not wait for burner helper: {e}"))?;
+    if let Ok(stderr_lines) = stderr_thread.join() { for line in stderr_lines { if !line.trim().is_empty() { log.push(line); } } }
+    if status.success() { Ok(BurnResult { drive, message: complete.unwrap_or_else(|| "Audio CD written successfully".to_string()), log }) }
+    else { Err(error.unwrap_or_else(|| format!("Burner helper exited with status {status}"))) }
 }
