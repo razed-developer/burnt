@@ -29,7 +29,12 @@ pub struct AudioMetadata { pub duration_seconds: f64 }
 #[serde(rename_all = "camelCase")]
 pub struct PreparedTrack { pub source_path: String, pub pcm_path: String, pub duration_seconds: f64, pub bytes: u64, pub sectors: u64 }
 
-fn push_tool_candidate(candidates: &mut Vec<PathBuf>, base: &Path, exe_name: &str) { candidates.push(base.join("tools").join("bin").join(exe_name)); candidates.push(base.join("bin").join(exe_name)); }
+fn push_tool_candidate(candidates: &mut Vec<PathBuf>, base: &Path, exe_name: &str) {
+    candidates.push(base.join("tools").join("bin").join(exe_name));
+    candidates.push(base.join("_up_").join("tools").join("bin").join(exe_name));
+    candidates.push(base.join("bin").join(exe_name));
+    candidates.push(base.join(exe_name));
+}
 fn tool_candidates(app: &tauri::AppHandle, name: &str) -> Vec<PathBuf> {
     let exe_name = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() }; let mut candidates = Vec::new();
     if let Ok(resource_dir) = app.path().resource_dir() { push_tool_candidate(&mut candidates, &resource_dir, &exe_name); }
@@ -37,7 +42,7 @@ fn tool_candidates(app: &tauri::AppHandle, name: &str) -> Vec<PathBuf> {
     if let Ok(cwd) = std::env::current_dir() { push_tool_candidate(&mut candidates, &cwd, &exe_name); if let Some(parent) = cwd.parent() { push_tool_candidate(&mut candidates, parent, &exe_name); } }
     candidates.sort(); candidates.dedup(); candidates
 }
-fn resolve_tool(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> { let candidates=tool_candidates(app,name);if let Some(found)=candidates.iter().find(|path|path.is_file()){return Ok(found.clone());}let checked=candidates.iter().map(|path|path.display().to_string()).collect::<Vec<_>>().join("\n- ");Err(format!("{name} was not found. Put the portable executable in tools/bin. Checked:\n- {checked}")) }
+fn resolve_tool(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> { let candidates=tool_candidates(app,name);if let Some(found)=candidates.iter().find(|path|path.is_file()){return Ok(found.clone());}let checked=candidates.iter().map(|path|path.display().to_string()).collect::<Vec<_>>().join("\n- ");Err(format!("{name} was not found in the bundled application resources. Checked:\n- {checked}")) }
 fn parse_duration(stdout:&[u8])->Result<f64,String>{let text=String::from_utf8_lossy(stdout);let value=text.lines().map(str::trim).find(|line|!line.is_empty()).ok_or_else(||"ffprobe did not return a duration".to_string())?;let duration=value.parse::<f64>().map_err(|_|format!("Could not parse ffprobe duration: {value}"))?;if duration.is_finite()&&duration>=0.0{Ok(duration)}else{Err("ffprobe returned an invalid duration".to_string())}}
 pub fn probe_audio(app:&tauri::AppHandle,source_path:&str)->Result<AudioMetadata,String>{let ffprobe=resolve_tool(app,"ffprobe")?;let output=hidden_command(ffprobe).args(["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",source_path]).output().map_err(|error|format!("Could not start ffprobe: {error}"))?;if !output.status.success(){let stderr=String::from_utf8_lossy(&output.stderr).trim().to_string();return Err(if stderr.is_empty(){"ffprobe could not inspect this audio file".to_string()}else{format!("ffprobe could not inspect this audio file: {stderr}")});}Ok(AudioMetadata{duration_seconds:parse_duration(&output.stdout)?})}
 fn create_session_dir()->Result<PathBuf,String>{let stamp=SystemTime::now().duration_since(UNIX_EPOCH).map_err(|error|format!("System clock error: {error}"))?.as_millis();let dir=std::env::temp_dir().join("Burnt").join(format!("session-{stamp}"));fs::create_dir_all(&dir).map_err(|error|format!("Could not create temporary audio folder: {error}"))?;Ok(dir)}
