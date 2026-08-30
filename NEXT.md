@@ -3,35 +3,34 @@
 ## Foundation and UI shell
 
 - [DONE] Scaffold Tauri v2 + React + Vite + TypeScript on `fresh-start`.
-- [DONE] Keep the project compartmentalized from the beginning; avoid oversized `App.tsx`/`main.rs` files.
-- [DONE] Build the one-screen track-list UI: optional title, add music, reorder, remove, total duration, capacity meter, disc status, Burn CD button.
-- [DONE] Make browser/dev-mode simulation possible so most UI work does not consume blank discs.
-- [DONE] Establish portable-safe resource/tool layout and document executable-relative/resource path requirement.
+- [DONE] Build and locally verify the first one-screen track-list UI.
+- [DONE] Keep browser simulation available for UI work without consuming discs.
 
-## Current phase — Audio preparation
+## Audio preparation
 
-- [DONE] Integrate ffprobe for real metadata/duration when files are selected.
-- [DONE] Add FFmpeg orchestration to convert supported source audio to raw 44.1 kHz / 16-bit / stereo PCM.
-- [DONE] Pad prepared PCM to complete 2352-byte CD-DA sectors.
-- [DONE] Create per-run temporary conversion folders and cleanup commands.
-- [DONE] Configure packaged Tauri builds to include locally supplied `tools/bin/*` resources.
-- [REQUIRED] Put `ffmpeg.exe` and `ffprobe.exe` in `tools/bin/` on the Windows development PC.
-- [REQUIRED] Pull and locally verify `npm run build` and `npm run tauri dev`.
-- [REQUIRED] Add several real MP3/M4A/FLAC/WAV/OGG files and confirm real durations appear.
-- [REQUIRED] Click **Burn CD** with no blank disc required; confirm the UI reports that all tracks were prepared successfully.
+- [DONE] Integrate ffprobe for real duration.
+- [DONE] Convert supported sources with FFmpeg to raw 44.1 kHz / 16-bit / stereo PCM.
+- [DONE] Pad PCM to complete 2352-byte CD-DA sectors.
+- [DONE] Manage per-run temporary files and cleanup.
+- [DONE] Locally verify real files reach `tracks prepared to burn`.
 
-## Next phase — Burner integration
+## Current phase — Burner integration
 
-- [REQUIRED] Turn `reference/imapi-v3` into a small native Windows burner helper while preserving the known-good IMAPI2/file-backed-IStream path.
-- [REQUIRED] Define a small manifest/protocol between Tauri and the burner helper.
-- [REQUIRED] Keep prepared PCM alive until the helper finishes, then clean it on success/failure.
-- [REQUIRED] Add recorder/media detection and useful error reporting.
-- [REQUIRED] Add burn progress reporting.
-- [REQUIRED] Hardware-test the integrated app with a new blank CD before considering burning complete.
+- [DONE] Create `native/windows/burnt-burner` from the hardware-tested IMAPI2/file-backed-IStream path.
+- [DONE] Add a local MSVC build script that outputs `tools/bin/burnt-burner.exe`.
+- [DONE] Connect Tauri to the native helper and pass prepared PCM tracks in UI order.
+- [DONE] Keep prepared PCM alive until the helper exits, then clean it on success/failure.
+- [DONE] Validate recorder support, blank writable media, PCM sector alignment, and available sectors before writing.
+- [DONE] Finalize and eject on a successful burn.
+- [REQUIRED] Build the helper locally from a Visual Studio Developer Command Prompt: `native\windows\burnt-burner\build.bat`.
+- [REQUIRED] Run `npm run tauri dev` with a blank CD-R/CD-RW inserted and perform the first integrated hardware burn.
+- [REQUIRED] Confirm the resulting disc plays and track order/audio are correct.
+- [WANTED] After the first integrated burn succeeds, add live helper event/progress streaming instead of waiting for the helper process to exit.
+- [WANTED] Replace simulated disc-status bar with live recorder/media status.
 
 ## Packaging and polish
 
-- [REQUIRED] Produce a Windows portable build with all required runtime tools bundled.
+- [REQUIRED] Produce a Windows portable build with FFmpeg, ffprobe, and burnt-burner bundled.
 - [WANTED] Windows installer after portable operation is proven.
 - [WANTED] Application icon and final visual polish.
 
